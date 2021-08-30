@@ -1,5 +1,14 @@
 # @backstage/plugin-auth-backend
 
+## 0.3.24
+
+### Patch Changes
+
+- 31892ee25: typo fix `tenentId` in Azure auth provider docs
+- Updated dependencies
+  - @backstage/catalog-model@0.9.1
+  - @backstage/backend-common@0.9.1
+
 ## 0.3.23
 
 ### Patch Changes
