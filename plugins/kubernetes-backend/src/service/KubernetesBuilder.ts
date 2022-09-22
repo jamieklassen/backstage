@@ -19,7 +19,6 @@ import express from 'express';
 import Router from 'express-promise-router';
 import { Duration } from 'luxon';
 import { Logger } from 'winston';
-
 import { getCombinedClusterSupplier } from '../cluster-locator';
 import { addResourceRoutesToRouter } from '../routes/resourcesRoutes';
 import { MultiTenantServiceLocator } from '../service-locator/MultiTenantServiceLocator';
@@ -41,6 +40,15 @@ import {
 } from './KubernetesFanOutHandler';
 import { KubernetesClientBasedFetcher } from './KubernetesFetcher';
 import { KubernetesProxy } from './KubernetesProxy';
+import {
+  AuthorizeResult,
+  PermissionEvaluator,
+  PermissionAuthorizer,
+} from '@backstage/plugin-permission-common';
+import { NotAllowedError } from '@backstage/errors';
+// import { catalogEntityReadPermission } from '../../../catalog-common/src/permissions';
+import { clustersReadPermission } from '../permissions/permissions';
+
 /**
  *
  * @alpha
@@ -49,6 +57,7 @@ export interface KubernetesEnvironment {
   logger: Logger;
   config: Config;
   catalogApi: CatalogApi;
+  permissions: PermissionEvaluator | PermissionAuthorizer;
 }
 
 /**
@@ -89,6 +98,7 @@ export class KubernetesBuilder {
   public async build(): KubernetesBuilderReturn {
     const logger = this.env.logger;
     const config = this.env.config;
+    const permissions = this.env.permissions;
 
     logger.info('Initializing Kubernetes backend');
 
@@ -126,6 +136,7 @@ export class KubernetesBuilder {
       clusterSupplier,
       this.env.catalogApi,
       proxy,
+      permissions,
     );
 
     return {
@@ -263,6 +274,7 @@ export class KubernetesBuilder {
     clusterSupplier: KubernetesClustersSupplier,
     catalogApi: CatalogApi,
     proxy: KubernetesProxy,
+    permissionApi: PermissionEvaluator | PermissionAuthorizer,
   ): express.Router {
     const logger = this.env.logger;
     const router = Router();
@@ -287,6 +299,14 @@ export class KubernetesBuilder {
     });
 
     router.get('/clusters', async (_, res) => {
+      const authorizeResponse = await permissionApi.authorize([
+        { permission: clustersReadPermission },
+      ]);
+
+      if (authorizeResponse[0].result === AuthorizeResult.DENY) {
+        throw new NotAllowedError();
+      }
+
       const clusterDetails = await this.fetchClusterDetails(clusterSupplier);
       res.json({
         items: clusterDetails.map(cd => ({
