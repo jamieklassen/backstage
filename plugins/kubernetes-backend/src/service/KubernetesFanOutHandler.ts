@@ -269,6 +269,10 @@ export class KubernetesFanOutHandler {
             })),
             namespace,
           })
+          .catch(_ => ({
+            errors: [{ errorType: 'CLUSTER_UNREACHABLE' }],
+            responses: [],
+          }))
           .then(result => this.getMetricsForPods(clusterDetailsItem, result))
           .then(r => this.toClusterObjects(clusterDetailsItem, r));
       }),

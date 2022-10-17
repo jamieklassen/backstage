@@ -226,6 +226,7 @@ export type KubernetesErrorTypes =
   | 'BAD_REQUEST'
   | 'UNAUTHORIZED_ERROR'
   | 'SYSTEM_ERROR'
+  | 'CLUSTER_UNREACHABLE'
   | 'UNKNOWN_ERROR';
 
 /** @public */

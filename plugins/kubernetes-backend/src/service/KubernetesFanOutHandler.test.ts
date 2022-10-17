@@ -22,6 +22,7 @@ import {
 } from '../types/types';
 import { KubernetesFanOutHandler } from './KubernetesFanOutHandler';
 import { PodStatus } from '@kubernetes/client-node/dist/top';
+import type { KubernetesFetchError } from '@kubernetes/common';
 
 const fetchObjectsForService = jest.fn();
 const fetchPodMetricsByNamespace = jest.fn();
@@ -82,6 +83,11 @@ const mockFetch = (mock: jest.Mock) => {
               resources: [],
             },
           ],
+        });
+      } else if (clusterName === 'unreachable-cluster') {
+        return Promise.reject({
+          code: 'ENOTFOUND',
+          message: 'getaddrinfo ENOTFOUND badurl.does.not.exist',
         });
       }
 
@@ -652,6 +658,52 @@ describe('getKubernetesObjectsByEntity', () => {
               resources: [],
             },
           ],
+        },
+      ],
+    });
+  });
+  it('returns objects for one cluster when another is unreachable', async () => {
+    getClustersByEntity.mockImplementation(() =>
+      Promise.resolve({
+        clusters: [
+          {
+            name: 'test-cluster',
+            authProvider: 'serviceAccount',
+          },
+          {
+            name: 'unreachable-cluster',
+            authProvider: 'serviceAccount',
+          },
+        ],
+      }),
+    );
+
+    const sut = mockFetchAndGetKubernetesFanOutHandler([]);
+
+    const result = await sut.getKubernetesObjectsByEntity({
+      entity,
+      auth: {},
+    });
+
+    expect(result).toStrictEqual({
+      items: [
+        {
+          cluster: {
+            name: 'test-cluster',
+          },
+          errors: [],
+          podMetrics: [POD_METRICS_FIXTURE],
+          resources: resourcesByCluster('test-cluster'),
+        },
+        {
+          cluster: {
+            name: 'unreachable-cluster',
+          },
+          errors: [
+            { errorType: 'CLUSTER_UNREACHABLE' } as KubernetesFetchError,
+          ],
+          podMetrics: [],
+          resources: [],
         },
       ],
     });
