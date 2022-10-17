@@ -79,7 +79,7 @@ describe('KubernetesFetcher', () => {
     });
 
     const testErrorResponse = async (
-      errorResponse: any,
+      errorResponse: object,
       expectedResult: any,
     ) => {
       clientMock.listClusterCustomObject.mockResolvedValueOnce({
@@ -94,7 +94,10 @@ describe('KubernetesFetcher', () => {
         },
       });
 
-      clientMock.listClusterCustomObject.mockRejectedValue(errorResponse);
+      clientMock.listClusterCustomObject.mockRejectedValue({
+        ...errorResponse,
+        name: 'HttpError',
+      });
 
       const result = await sut.fetchObjectsForService({
         serviceId: 'some-service',
@@ -599,6 +602,7 @@ describe('KubernetesFetcher', () => {
       topPodsMock
         .mockResolvedValueOnce(POD_METRICS_FIXTURE)
         .mockRejectedValueOnce({
+          name: 'HttpError',
           response: {
             statusCode: 404,
             request: {

@@ -96,7 +96,7 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
             `backstage.io/kubernetes-id=${params.serviceId}`,
           toFetch.objectType,
           params.namespace,
-        ).catch(this.captureKubernetesErrorsRethrowOthers.bind(this));
+        ).catch(this.captureHttpErrorsWrapOthers.bind(this));
       });
 
     return Promise.all(fetchResults).then(fetchResultsToResponseWrapper);
@@ -121,14 +121,14 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
             resources: r,
           } as PodStatusFetchResponse;
         })
-        .catch(this.captureKubernetesErrorsRethrowOthers.bind(this)),
+        .catch(this.captureHttpErrorsWrapOthers.bind(this)),
     );
 
     return Promise.all(fetchResults).then(fetchResultsToResponseWrapper);
   }
 
-  private captureKubernetesErrorsRethrowOthers(e: any): KubernetesFetchError {
-    if (e.response && e.response.statusCode) {
+  private captureHttpErrorsWrapOthers(e: any): KubernetesFetchError {
+    if (e.name === 'HttpError' && e.response && e.response.statusCode) {
       this.logger.warn(
         `statusCode=${e.response.statusCode} for resource ${
           e.response.request.uri.pathname
@@ -140,6 +140,7 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
         resourcePath: e.response.request.uri.pathname,
       };
     }
+    e.name = 'KubernetesFetchError';
     throw e;
   }
 

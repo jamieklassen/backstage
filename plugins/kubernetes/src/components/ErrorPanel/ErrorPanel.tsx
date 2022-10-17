@@ -16,7 +16,10 @@
 
 import React from 'react';
 import { Typography } from '@material-ui/core';
-import { ClusterObjects } from '@backstage/plugin-kubernetes-common';
+import {
+  ClusterObjects,
+  KubernetesException,
+} from '@backstage/plugin-kubernetes-common';
 import { WarningPanel } from '@backstage/core-components';
 
 const clustersWithErrorsToErrorMessage = (
@@ -29,7 +32,9 @@ const clustersWithErrorsToErrorMessage = (
         {c.errors.map((e, j) => {
           return (
             <Typography variant="body2" key={j}>
-              {`Error fetching Kubernetes resource: '${e.resourcePath}', error: ${e.errorType}, status code: ${e.statusCode}`}
+              {e.errorType === 'EXCEPTION'
+                ? `Error: ${(e as KubernetesException).message}`
+                : `Error fetching Kubernetes resource: '${e.resourcePath}', error: ${e.errorType}, status code: ${e.statusCode}`}
             </Typography>
           );
         })}

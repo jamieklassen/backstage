@@ -22,6 +22,8 @@ import {
   ObjectFetchParams,
 } from '../types/types';
 import { KubernetesFanOutHandler } from './KubernetesFanOutHandler';
+import { PodStatus } from '@kubernetes/client-node/dist/top';
+import type { KubernetesException } from '@backstage/plugin-kubernetes-common';
 
 const fetchObjectsForService = jest.fn();
 const fetchPodMetricsByNamespaces = jest.fn();
@@ -82,6 +84,15 @@ const mockFetch = (mock: jest.Mock) => {
               resources: [],
             },
           ],
+        });
+      } else if (clusterName === 'unreachable-cluster') {
+        return Promise.reject({
+          name: 'KubernetesFetchError',
+          errno: -3008,
+          code: 'ENOTFOUND',
+          syscall: 'getaddrinfo',
+          hostname: 'badurl.does.not.exist',
+          message: 'getaddrinfo ENOTFOUND badurl.does.not.exist',
         });
       }
 
@@ -738,6 +749,55 @@ describe('getKubernetesObjectsByEntity', () => {
           ],
           podMetrics: [],
           resources: resourcesByCluster('other-cluster'),
+        },
+      ],
+    });
+  });
+  it('returns objects for one cluster when another is unreachable', async () => {
+    getClustersByEntity.mockImplementation(() =>
+      Promise.resolve({
+        clusters: [
+          {
+            name: 'test-cluster',
+            authProvider: 'serviceAccount',
+          },
+          {
+            name: 'unreachable-cluster',
+            authProvider: 'serviceAccount',
+          },
+        ],
+      }),
+    );
+
+    const sut = mockFetchAndGetKubernetesFanOutHandler([]);
+
+    const result = await sut.getKubernetesObjectsByEntity({
+      entity,
+      auth: {},
+    });
+
+    expect(result).toStrictEqual({
+      items: [
+        {
+          cluster: {
+            name: 'test-cluster',
+          },
+          errors: [],
+          podMetrics: [POD_METRICS_FIXTURE],
+          resources: resourcesByCluster('test-cluster'),
+        },
+        {
+          cluster: {
+            name: 'unreachable-cluster',
+          },
+          errors: [
+            {
+              errorType: 'EXCEPTION',
+              message: 'getaddrinfo ENOTFOUND badurl.does.not.exist',
+            } as KubernetesException,
+          ],
+          podMetrics: [],
+          resources: [],
         },
       ],
     });

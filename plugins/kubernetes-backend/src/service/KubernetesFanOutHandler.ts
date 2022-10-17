@@ -42,6 +42,7 @@ import {
   KubernetesRequestAuth,
   CustomResourceMatcher,
   PodStatusFetchResponse,
+  KubernetesException,
 } from '@backstage/plugin-kubernetes-common';
 import {
   ContainerStatus,
@@ -274,6 +275,23 @@ export class KubernetesFanOutHandler {
             namespace,
           })
           .then(result => this.getMetricsForPods(clusterDetailsItem, result))
+          .catch(e => {
+            if (e.name === 'KubernetesFetchError') {
+              return [
+                {
+                  errors: [
+                    {
+                      errorType: 'EXCEPTION',
+                      message: e.message,
+                    } as KubernetesException,
+                  ],
+                  responses: [],
+                },
+                [],
+              ];
+            }
+            throw e;
+          })
           .then(r => this.toClusterObjects(clusterDetailsItem, r));
       }),
     ).then(this.toObjectsByEntityResponse);
