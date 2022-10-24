@@ -65,9 +65,9 @@ const statusCodeToErrorType = (statusCode: number): KubernetesErrorTypes => {
     case 404:
       return 'NOT_FOUND';
     case 500:
-      return 'SYSTEM_ERROR';
+      return 'INTERNAL_SERVER_ERROR';
     default:
-      return 'UNKNOWN_ERROR';
+      return 'UNCLASSIFIED_HTTP_ERROR';
   }
 };
 
@@ -96,7 +96,12 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
             `backstage.io/kubernetes-id=${params.serviceId}`,
           toFetch.objectType,
           params.namespace,
-        ).catch(this.captureKubernetesErrorsRethrowOthers.bind(this));
+        ).catch(
+          this.captureKubernetesAndSystemErrorsRethrowOthers.bind(
+            this,
+            toFetch,
+          ),
+        );
       });
 
     return Promise.all(fetchResults).then(fetchResultsToResponseWrapper);
@@ -121,13 +126,16 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
             resources: r,
           } as PodStatusFetchResponse;
         })
-        .catch(this.captureKubernetesErrorsRethrowOthers.bind(this)),
+        .catch(this.captureKubernetesAndSystemErrorsRethrowOthers.bind(this)),
     );
 
     return Promise.all(fetchResults).then(fetchResultsToResponseWrapper);
   }
 
-  private captureKubernetesErrorsRethrowOthers(e: any): KubernetesFetchError {
+  private captureKubernetesAndSystemErrorsRethrowOthers(
+    resource: ObjectToFetch,
+    e: any,
+  ): KubernetesFetchError {
     if (e.response && e.response.statusCode) {
       this.logger.warn(
         `statusCode=${e.response.statusCode} for resource ${
@@ -136,8 +144,15 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
       );
       return {
         errorType: statusCodeToErrorType(e.response.statusCode),
-        statusCode: e.response.statusCode,
-        resourcePath: e.response.request.uri.pathname,
+        statusCode: `${e.response.statusCode}`,
+        resourcePath: JSON.stringify(resource),
+      };
+    } else if (e.errno || e.code === 'ENOTFOUND') {
+      this.logger.warn(`system error: ${JSON.stringify(e)}`);
+      return {
+        errorType: 'SYSTEM_ERROR',
+        statusCode: e.code,
+        resourcePath: JSON.stringify(resource),
       };
     }
     throw e;

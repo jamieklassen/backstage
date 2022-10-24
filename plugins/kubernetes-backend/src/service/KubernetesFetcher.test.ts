@@ -435,15 +435,69 @@ describe('KubernetesFetcher', () => {
           },
         },
         {
-          errorType: 'SYSTEM_ERROR',
+          errorType: 'INTERNAL_SERVER_ERROR',
           resourcePath: '/some/path',
           statusCode: 500,
         },
       );
     });
+    it('returns pods and system error when cluster disappears between calls', async () => {
+      clientMock.listClusterCustomObject.mockResolvedValueOnce({
+        body: {
+          items: [
+            {
+              metadata: {
+                name: 'pod-name',
+              },
+            },
+          ],
+        },
+      });
+      // according to https://nodejs.org/api/errors.html#errorcode:
+      // > `error.code` is the most stable way to identify an error.
+      clientMock.listClusterCustomObject.mockRejectedValue({
+        code: 'ENOTFOUND',
+        errno: 'ENOTFOUND',
+        message: 'getaddrinfo ENOTFOUND localhost',
+      });
+
+      const result = await sut.fetchObjectsForService({
+        serviceId: 'some-service',
+        clusterDetails: {
+          name: 'cluster1',
+          url: 'http://localhost:9999',
+          serviceAccountToken: 'token',
+          authProvider: 'serviceAccount',
+        },
+        objectTypesToFetch: OBJECTS_TO_FETCH,
+        labelSelector: '',
+        customResources: [],
+      });
+
+      expect(result).toStrictEqual({
+        errors: [
+          {
+            errorType: 'SYSTEM_ERROR',
+            errorCode: 'ENOTFOUND',
+          },
+        ],
+        responses: [
+          {
+            type: 'pods',
+            resources: [
+              {
+                metadata: {
+                  name: 'pod-name',
+                },
+              },
+            ],
+          },
+        ],
+      });
+    });
     // they're in testErrorResponse
     // eslint-disable-next-line jest/expect-expect
-    it('should return pods, unknown error', async () => {
+    it('should return pods, unclassified HTTP error', async () => {
       await testErrorResponse(
         {
           response: {
@@ -456,7 +510,7 @@ describe('KubernetesFetcher', () => {
           },
         },
         {
-          errorType: 'UNKNOWN_ERROR',
+          errorType: 'UNCLASSIFIED_HTTP_ERROR',
           resourcePath: '/some/path',
           statusCode: 900,
         },

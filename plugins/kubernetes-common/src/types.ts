@@ -225,7 +225,7 @@ export interface PodStatusFetchResponse {
 /** @public */
 export interface KubernetesFetchError {
   errorType: KubernetesErrorTypes;
-  statusCode?: number;
+  statusCode?: string;
   resourcePath?: string;
 }
 
@@ -234,8 +234,9 @@ export type KubernetesErrorTypes =
   | 'BAD_REQUEST'
   | 'UNAUTHORIZED_ERROR'
   | 'NOT_FOUND'
-  | 'SYSTEM_ERROR'
-  | 'UNKNOWN_ERROR';
+  | 'INTERNAL_SERVER_ERROR'
+  | 'UNCLASSIFIED_HTTP_ERROR'
+  | 'SYSTEM_ERROR';
 
 /** @public */
 export interface ClientCurrentResourceUsage {
