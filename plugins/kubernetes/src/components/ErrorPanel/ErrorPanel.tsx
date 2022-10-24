@@ -26,13 +26,19 @@ const clustersWithErrorsToErrorMessage = (
     return (
       <div key={i}>
         <Typography variant="body2">{`Cluster: ${c.cluster.name}`}</Typography>
-        {c.errors.map((e, j) => {
-          return (
-            <Typography variant="body2" key={j}>
-              {`Error fetching Kubernetes resource: '${e.resourcePath}', error: ${e.errorType}, status code: ${e.statusCode}`}
-            </Typography>
-          );
-        })}
+        {'message' in c.errors ? (
+          <Typography variant="body2">
+            {`Error contacting the cluster: ${c.errors.message}`}
+          </Typography>
+        ) : (
+          c.errors.map((e, j) => {
+            return (
+              <Typography variant="body2" key={j}>
+                {`Error fetching Kubernetes resource: '${e.resourcePath}', error: ${e.errorType}, status code: ${e.statusCode}`}
+              </Typography>
+            );
+          })
+        )}
         <br />
       </div>
     );

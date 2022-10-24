@@ -41,6 +41,7 @@ import {
   PodFetchResponse,
   KubernetesRequestAuth,
   CustomResourceMatcher,
+  ClusterError,
 } from '@backstage/plugin-kubernetes-common';
 import {
   ContainerStatus,
@@ -269,8 +270,8 @@ export class KubernetesFanOutHandler {
             })),
             namespace,
           })
-          .catch(_ => ({
-            errors: [{ errorType: 'CLUSTER_UNREACHABLE' }],
+          .catch(e => ({
+            errors: { message: e.message } as ClusterError,
             responses: [],
           }))
           .then(result => this.getMetricsForPods(clusterDetailsItem, result))
@@ -307,7 +308,8 @@ export class KubernetesFanOutHandler {
     return {
       items: clusterObjects.filter(
         item =>
-          (item.errors !== undefined && item.errors.length >= 1) ||
+          (item.errors !== undefined &&
+            ('message' in item.errors || item.errors.length >= 1)) ||
           (item.resources !== undefined &&
             item.resources.length >= 1 &&
             item.resources.some(fr => fr.resources.length >= 1)),

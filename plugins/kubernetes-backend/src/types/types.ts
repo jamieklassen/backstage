@@ -20,7 +20,7 @@ import type { JsonObject } from '@backstage/types';
 import type {
   CustomResourceMatcher,
   FetchResponse,
-  KubernetesFetchError,
+  KubernetesError,
   KubernetesRequestAuth,
   KubernetesRequestBody,
   ObjectsByEntityResponse,
@@ -64,7 +64,7 @@ export interface KubernetesFetcher {
  * @alpha
  */
 export interface FetchResponseWrapper {
-  errors: KubernetesFetchError[];
+  errors: KubernetesError;
   responses: FetchResponse[];
 }
 

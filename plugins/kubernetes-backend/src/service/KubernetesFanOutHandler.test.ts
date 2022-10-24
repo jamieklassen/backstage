@@ -22,7 +22,7 @@ import {
 } from '../types/types';
 import { KubernetesFanOutHandler } from './KubernetesFanOutHandler';
 import { PodStatus } from '@kubernetes/client-node/dist/top';
-import type { KubernetesFetchError } from '@kubernetes/common';
+import type { ResourceFetchError } from '@kubernetes/common';
 
 const fetchObjectsForService = jest.fn();
 const fetchPodMetricsByNamespace = jest.fn();
@@ -86,7 +86,10 @@ const mockFetch = (mock: jest.Mock) => {
         });
       } else if (clusterName === 'unreachable-cluster') {
         return Promise.reject({
+          errno: -3008,
           code: 'ENOTFOUND',
+          syscall: 'getaddrinfo',
+          hostname: 'badurl.does.not.exist',
           message: 'getaddrinfo ENOTFOUND badurl.does.not.exist',
         });
       }
@@ -699,9 +702,9 @@ describe('getKubernetesObjectsByEntity', () => {
           cluster: {
             name: 'unreachable-cluster',
           },
-          errors: [
-            { errorType: 'CLUSTER_UNREACHABLE' } as KubernetesFetchError,
-          ],
+          errors: {
+            message: 'getaddrinfo ENOTFOUND badurl.does.not.exist',
+          } as ClusterError,
           podMetrics: [],
           resources: [],
         },

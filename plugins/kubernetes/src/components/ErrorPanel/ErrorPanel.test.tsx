@@ -60,6 +60,16 @@ describe('ErrorPanel', () => {
                 },
               ],
             },
+            {
+              cluster: {
+                name: 'THAT_CLUSTER',
+              },
+              resources: [],
+              podMetrics: [],
+              errors: {
+                message: 'connect ETIMEDOUT some.host:1234',
+              },
+            },
           ]}
         />,
       ),
@@ -78,6 +88,12 @@ describe('ErrorPanel', () => {
     expect(
       getByText(
         "Error fetching Kubernetes resource: 'some/resource', error: SYSTEM_ERROR, status code: 500",
+      ),
+    ).toBeInTheDocument();
+    expect(getByText('Cluster: THAT_CLUSTER')).toBeInTheDocument();
+    expect(
+      getByText(
+        'Error contacting the cluster: connect ETIMEDOUT some.host:1234',
       ),
     ).toBeInTheDocument();
   });

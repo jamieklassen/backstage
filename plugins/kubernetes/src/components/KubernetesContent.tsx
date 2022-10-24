@@ -41,7 +41,9 @@ export const KubernetesContent = ({
   );
 
   const clustersWithErrors =
-    kubernetesObjects?.items.filter(r => r.errors.length > 0) ?? [];
+    kubernetesObjects?.items.filter(
+      r => 'message' in r.errors || r.errors.length > 0,
+    ) ?? [];
 
   const detectedErrors =
     kubernetesObjects !== undefined

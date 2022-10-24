@@ -109,7 +109,7 @@ export interface ClusterObjects {
   cluster: ClusterAttributes;
   resources: FetchResponse[];
   podMetrics: ClientPodStatus[];
-  errors: KubernetesFetchError[];
+  errors: KubernetesError;
 }
 
 /** @public */
@@ -215,7 +215,15 @@ export interface DaemonSetsFetchResponse {
 }
 
 /** @public */
-export interface KubernetesFetchError {
+export type KubernetesError = ClusterError | ResourceFetchError[];
+
+/** @public */
+export interface ClusterError {
+  message: string;
+}
+
+/** @public */
+export interface ResourceFetchError {
   errorType: KubernetesErrorTypes;
   statusCode?: number;
   resourcePath?: string;
@@ -226,7 +234,6 @@ export type KubernetesErrorTypes =
   | 'BAD_REQUEST'
   | 'UNAUTHORIZED_ERROR'
   | 'SYSTEM_ERROR'
-  | 'CLUSTER_UNREACHABLE'
   | 'UNKNOWN_ERROR';
 
 /** @public */

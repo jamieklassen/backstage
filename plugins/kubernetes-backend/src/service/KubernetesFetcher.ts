@@ -27,7 +27,7 @@ import {
 } from '../types/types';
 import {
   FetchResponse,
-  KubernetesFetchError,
+  ResourceFetchError,
   KubernetesErrorTypes,
 } from '@backstage/plugin-kubernetes-common';
 import { KubernetesClientProvider } from './KubernetesClientProvider';
@@ -42,9 +42,9 @@ export interface KubernetesClientBasedFetcherOptions {
   logger: Logger;
 }
 
-type FetchResult = FetchResponse | KubernetesFetchError;
+type FetchResult = FetchResponse | ResourceFetchError;
 
-const isError = (fr: FetchResult): fr is KubernetesFetchError =>
+const isError = (fr: FetchResult): fr is ResourceFetchError =>
   fr.hasOwnProperty('errorType');
 
 function fetchResultsToResponseWrapper(
@@ -118,7 +118,7 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
     return topPods(coreApi, metricsClient, namespace);
   }
 
-  private captureKubernetesErrorsRethrowOthers(e: any): KubernetesFetchError {
+  private captureKubernetesErrorsRethrowOthers(e: any): ResourceFetchError {
     if (e.response && e.response.statusCode) {
       this.logger.warn(
         `statusCode=${e.response.statusCode} for resource ${
