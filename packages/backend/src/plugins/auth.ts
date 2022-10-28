@@ -80,8 +80,27 @@ export default async function createPlugin(
       }),
       microsoft: providers.microsoft.create({
         signIn: {
-          resolver:
-            providers.microsoft.resolvers.emailMatchingUserEntityAnnotation(),
+          async resolver({ result: { fullProfile } }, ctx) {
+            const userId = fullProfile.id;
+            if (!userId) {
+              throw new Error(
+                `Microsoft user profile does not contain an ID`,
+              );
+            }
+
+            const userEntityRef = stringifyEntityRef({
+              kind: 'User',
+              name: userId,
+              namespace: DEFAULT_NAMESPACE,
+            });
+
+            return ctx.issueToken({
+              claims: {
+                sub: userEntityRef,
+                ent: [userEntityRef],
+              },
+            });
+          },
         },
       }),
       google: providers.google.create({

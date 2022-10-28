@@ -36,6 +36,10 @@ const Component: ProviderComponent = ({ config, onSignInSuccess }) => {
 
   const handleLogin = async () => {
     try {
+      debugger; // Clicking the "Sign In" button triggers this
+                // call to getBackstageIdentity from the
+                // BackstageIdentityApi interface associated to the current
+                // auth provider ...
       const identityResponse = await authApi.getBackstageIdentity({
         instantPopup: true,
       });

@@ -73,6 +73,8 @@ export function showLoginPopup(options: LoginPopupOptions): Promise<any> {
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
 
+    debugger; // ... take a breath; this is the last piece of frontend code for
+              // a little while ...
     const popup = window.open(
       options.url,
       options.name,
@@ -106,6 +108,7 @@ export function showLoginPopup(options: LoginPopupOptions): Promise<any> {
         return;
       }
       const authResult = data as AuthResult;
+      debugger; // ... and the main window receives those events ...
 
       if ('error' in authResult) {
         const error = new Error(authResult.error.message);

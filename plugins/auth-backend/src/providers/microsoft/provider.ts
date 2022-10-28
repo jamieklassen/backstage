@@ -98,6 +98,11 @@ export class MicrosoftAuthProvider implements OAuthHandlers {
   }
 
   async start(req: OAuthStartRequest): Promise<OAuthStartResponse> {
+    debugger; // ... and welcome to the backend! The 'start' method on an
+              // auth provider is the way sessions begin. And the microsoft
+              // auth provider, like so many others, mainly relies on a
+              // Strategy object from the Passport.js to handle most of its
+              // logic. Let's see how that strategy gets invoked ...
     return await executeRedirectStrategy(req, this._strategy, {
       scope: req.scope,
       state: encodeState(req.state),
@@ -105,6 +110,10 @@ export class MicrosoftAuthProvider implements OAuthHandlers {
   }
 
   async handler(req: express.Request) {
+    debugger; // ... and the microsoft strategy gets called again here, but
+              // now it's the `handle` method and we have an authorization code.
+              // Let's see how `executeFrameHandlerStrategy` makes use of our
+              // Passport.js strategy now ...
     const { result, privateInfo } = await executeFrameHandlerStrategy<
       OAuthResult,
       PrivateInfo

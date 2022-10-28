@@ -260,7 +260,7 @@ export async function createBackendConfig(
     performance: {
       hints: false, // we check the gzip size instead
     },
-    devtool: isDev ? 'eval-cheap-module-source-map' : 'source-map',
+    devtool: 'source-map',
     context: paths.targetPath,
     entry: [
       'webpack/hot/poll?100',

@@ -112,6 +112,10 @@ export class RefreshingAuthSessionManager<T> implements SessionManager<T> {
     }
 
     // We can call authRequester multiple times, the returned session will contain all requested scopes.
+
+    debugger; // ... and when you haven't logged in yet, a bunch of guards above
+              // this point get skipped. First the helper's getExtendedScope
+              // method gets called ...
     this.currentSession = await this.connector.createSession({
       ...options,
       scopes: this.helper.getExtendedScope(this.currentSession, options.scopes),

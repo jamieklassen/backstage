@@ -84,6 +84,9 @@ export const executeRedirectStrategy = async (
       resolve({ url, status: status ?? undefined });
     };
 
+    debugger; // ... by having its authenticate method called. It's important
+              // to note at this point that we do NOT have an authorization
+              // code. Moving forward ...
     strategy.authenticate(req, { ...options });
   });
 };
@@ -95,8 +98,12 @@ export const executeFrameHandlerStrategy = async <Result, PrivateInfo = never>(
 ) => {
   return new Promise<{ result: Result; privateInfo: PrivateInfo }>(
     (resolve, reject) => {
+      debugger; // ... So it first sets up the success/fail/error callbacks ...
       const strategy = Object.create(providerStrategy);
       strategy.success = (result: any, privateInfo: any) => {
+        debugger; // ... finally we return all that Passport.js goodness,
+                  // including the user profile, access token and refresh
+                  // token ...
         resolve({ result, privateInfo });
       };
       strategy.fail = (
@@ -125,6 +132,7 @@ export const executeFrameHandlerStrategy = async <Result, PrivateInfo = never>(
       strategy.redirect = () => {
         reject(new Error('Unexpected redirect'));
       };
+      debugger; // ... and then calls authenticate again! Interesting! Next ...
       strategy.authenticate(req, { ...(options ?? {}) });
     },
   );

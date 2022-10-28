@@ -160,7 +160,16 @@ export default class OAuth2
   async getBackstageIdentity(
     options: AuthRequestOptions = {},
   ): Promise<BackstageIdentityResponse | undefined> {
+    debugger; // which, in the case of microsoft, is a thin wrapper around
+              // OAuth2. OAuth2 itself mostly delegates to a session manager
+              // to handle getting an identity ...
     const session = await this.sessionManager.getSession(options);
+
+
+
+
+    debugger; // ... and at last we've got our identity back for use in the
+              // frontend!
     return session?.backstageIdentity;
   }
 

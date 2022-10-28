@@ -55,6 +55,12 @@ export class SessionScopeHelper<T> {
 
   getExtendedScope(session: T | undefined, scopes?: Set<string>) {
     const newScope = new Set(this.options.defaultScopes);
+    debugger; // ... which is notable because it merges any requested scopes
+              // (of which there are none for a simple sign-in) with any
+              // default scopes from the provider. Microsoft has a number of
+              // default scopes, one of which is Azure-specific. Next let's
+              // look at the implementation of `createSession` on the session
+              // manager's associated AuthConnector ...
     if (session && this.options.sessionScopes !== undefined) {
       const sessionScopes = this.options.sessionScopes(session);
       for (const scope of sessionScopes) {

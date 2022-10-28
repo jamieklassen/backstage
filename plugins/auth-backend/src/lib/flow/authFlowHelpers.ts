@@ -51,6 +51,9 @@ export const postMessageResponse = (
   // never received, the event listener can conclude that targetOrigin
   // was disallowed, indicating potential misconfiguration.
   //
+  debugger; // ... to the frontend, where we do a funny trick and instruct the
+            // popup window to automatically close after
+            // emitting events about the auth response ...
   const script = `
     var authResponse = decodeURIComponent('${base64Data}');
     var origin = decodeURIComponent('${base64Origin}');

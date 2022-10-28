@@ -94,6 +94,8 @@ export class DefaultAuthConnector<AuthSession>
 
   async createSession(options: CreateSessionOptions): Promise<AuthSession> {
     if (options.instantPopup) {
+      debugger; // ... when logging in, instantPopup is true, so we'll hit this
+                // branch ...
       return this.showPopup(options.scopes);
     }
     return this.authRequester(options.scopes);
@@ -152,6 +154,8 @@ export class DefaultAuthConnector<AuthSession>
 
   private async showPopup(scopes: Set<string>): Promise<AuthSession> {
     const scope = this.joinScopesFunc(scopes);
+    debugger; // ... where, unsurprisingly, a popup gets shown. However the URL
+              // of that popup is interesting ...
     const popupUrl = await this.buildUrl('/start', {
       scope,
       origin: location.origin,
@@ -178,6 +182,10 @@ export class DefaultAuthConnector<AuthSession>
       env: this.environment,
     });
 
+    debugger; // ...because it represents a request directly to the backend (the
+              // baseURL of the auth-backend plugin), not via javascript, and
+              // it includes those scopes we mentioned earlier in the
+              // queryString.
     return `${baseUrl}/${this.provider.id}${path}${queryString}`;
   }
 
