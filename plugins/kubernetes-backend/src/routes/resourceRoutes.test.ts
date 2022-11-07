@@ -20,10 +20,10 @@ import request from 'supertest';
 import Router from 'express-promise-router';
 import { addResourceRoutesToRouter } from './resourcesRoutes';
 import { Entity } from '@backstage/catalog-model';
-import { 
+import {
   PermissionEvaluator,
-  AuthorizeResult
- } from '@backstage/plugin-permission-common';
+  AuthorizeResult,
+} from '@backstage/plugin-permission-common';
 
 describe('resourcesRoutes', () => {
   let app: express.Express;
@@ -36,7 +36,7 @@ describe('resourcesRoutes', () => {
     permissions = {
       authorize: jest.fn(),
       authorizeConditional: jest.fn(),
-    }
+    };
     addResourceRoutesToRouter(
       router,
       {
@@ -58,67 +58,47 @@ describe('resourcesRoutes', () => {
           if (args.entity.metadata.name === 'inject500') {
             return Promise.reject(new Error('some internal error'));
           }
-          return Promise.resolve(
-            {
-              items: [
-                {
-                  cluster : {
-                    name : "clusterOne"
+          return Promise.resolve({
+            items: [
+              {
+                cluster: {
+                  name: 'clusterOne',
+                },
+                podMetrics: [],
+                resources: [
+                  {
+                    type: 'pods',
+                    resources: [
+                      {
+                        metadata: {
+                          name: 'pod1',
+                        },
+                      },
+                    ],
                   },
-                  podMetrics: [],
-                  resources: [
-                    {
-                      type: "pods",
-                      resources: [
-                        {
-                          metadata: {
-                            name: 'pod1'
-                          } 
-                        }
-                      ]
-                    },
-                    {type: "services",
-                     resources: []
-                    },
-                    {type: "configmaps",
-                     resources: []
-                    },
-                    {type: "limitranges",
-                     resources: []
-                    },
-                    {type: "deployments",
-                     resources: [
-                       {
-                         name: "deployment1"
-                       }
-                     ]
-                    },
-                    {type: "replicasets",
-                     resources: []
-                    },
-                    {type: "horizontalpodautoscalers",
-                     resources: []
-                    },
-                    {type: "jobs",
-                     resources: []
-                    },
-                    {type: "cronjobs",
-                     resources: []
-                    },
-                    {type: "ingresses",
-                     resources: []
-                    },
-                    {type: "statefulsets",
-                     resources: []
-                    },
-                    {type: "daemonsets",
-                     resources: []
-                    },
-                  ],
-                  errors: []
-                }
-              ]
-            });
+                  { type: 'services', resources: [] },
+                  { type: 'configmaps', resources: [] },
+                  { type: 'limitranges', resources: [] },
+                  {
+                    type: 'deployments',
+                    resources: [
+                      {
+                        name: 'deployment1',
+                      },
+                    ],
+                  },
+                  { type: 'replicasets', resources: [] },
+                  { type: 'horizontalpodautoscalers', resources: [] },
+                  { type: 'jobs', resources: [] },
+                  { type: 'cronjobs', resources: [] },
+                  { type: 'ingresses', resources: [] },
+                  { type: 'statefulsets', resources: [] },
+                  { type: 'daemonsets', resources: [] },
+                ],
+                errors: [],
+              },
+            ],
+          });
         }),
         getCustomResourcesByEntity: jest.fn().mockImplementation(args => {
           if (args.entity.metadata.name === 'inject500') {
@@ -149,14 +129,15 @@ describe('resourcesRoutes', () => {
   });
 
   describe('POST /resources/workloads/query', () => {
-
     beforeEach(() => {
       permissions.authorizeConditional.mockReset();
     });
 
     // eslint-disable-next-line jest/expect-expect
     it('200 happy path', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/workloads/query')
@@ -171,68 +152,50 @@ describe('resourcesRoutes', () => {
         .expect(200, {
           items: [
             {
-              cluster : {
-                name : "clusterOne"
+              cluster: {
+                name: 'clusterOne',
               },
               podMetrics: [],
               resources: [
                 {
-                  type: "pods",
+                  type: 'pods',
                   resources: [
                     {
                       metadata: {
-                        name: 'pod1'
-                      } 
-                    }
-                  ]
+                        name: 'pod1',
+                      },
+                    },
+                  ],
                 },
-                {type: "services",
-                 resources: []
+                { type: 'services', resources: [] },
+                { type: 'configmaps', resources: [] },
+                { type: 'limitranges', resources: [] },
+                {
+                  type: 'deployments',
+                  resources: [
+                    {
+                      name: 'deployment1',
+                    },
+                  ],
                 },
-                {type: "configmaps",
-                 resources: []
-                },
-                {type: "limitranges",
-                 resources: []
-                },
-                {type: "deployments",
-                 resources: [
-                   {
-                     name: "deployment1"
-                   }
-                 ]
-                },
-                {type: "replicasets",
-                 resources: []
-                },
-                {type: "horizontalpodautoscalers",
-                 resources: []
-                },
-                {type: "jobs",
-                 resources: []
-                },
-                {type: "cronjobs",
-                 resources: []
-                },
-                {type: "ingresses",
-                 resources: []
-                },
-                {type: "statefulsets",
-                 resources: []
-                },
-                {type: "daemonsets",
-                 resources: []
-                },
+                { type: 'replicasets', resources: [] },
+                { type: 'horizontalpodautoscalers', resources: [] },
+                { type: 'jobs', resources: [] },
+                { type: 'cronjobs', resources: [] },
+                { type: 'ingresses', resources: [] },
+                { type: 'statefulsets', resources: [] },
+                { type: 'daemonsets', resources: [] },
               ],
-              errors: []
-            }
-          ]
+              errors: [],
+            },
+          ],
         });
-  
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when missing entity ref', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/workloads/query')
@@ -254,7 +217,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when bad entity ref', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/workloads/query')
@@ -281,7 +246,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when no entity in catalog', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/workloads/query')
@@ -307,7 +274,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('401 when no Auth header', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/workloads/query')
@@ -329,7 +298,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('401 when invalid Auth header', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/workloads/query')
@@ -352,7 +323,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('500 handle gracefully', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/workloads/query')
@@ -377,9 +350,11 @@ describe('resourcesRoutes', () => {
     });
 
     describe('permissions framework is enabled', () => {
-      it('403 response if Permission Policy is in place that blocks endpoint', async () => {
-        permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.DENY}]))
-        
+      it('returns a 403 response if Permission Policy is in place that blocks endpoint', async () => {
+        permissions.authorizeConditional.mockReturnValue(
+          Promise.resolve([{ result: AuthorizeResult.DENY }]),
+        );
+
         await request(app)
           .post('/resources/workloads/query')
           .send({
@@ -391,9 +366,8 @@ describe('resourcesRoutes', () => {
           .set('Content-Type', 'application/json')
           .set('Authorization', 'Bearer Zm9vYmFy')
           .expect(403);
-        
       });
-      
+
       it('Filters out deployments if Permission Policy only allows access to pods', async () => {
         permissions.authorizeConditional.mockReturnValue(
           Promise.resolve([
@@ -402,18 +376,16 @@ describe('resourcesRoutes', () => {
               pluginId: 'kubernetes',
               resourceType: 'kubernetes-resource',
               conditions: {
-                resourceType:'kubernetes-resource', 
+                resourceType: 'kubernetes-resource',
                 rule: 'IS_OF_KIND',
                 params: {
-                  kinds: [
-                    'pods'
-                  ]
+                  kind: ['pods'] ,
                 },
-              }
-            }
-          ])
-        )
-        
+              },
+            },
+          ]),
+        );
+
         await request(app)
           .post('/resources/workloads/query')
           .send({
@@ -425,77 +397,44 @@ describe('resourcesRoutes', () => {
           .set('Content-Type', 'application/json')
           .set('Authorization', 'Bearer Zm9vYmFy')
           .expect(200)
-          .expect((res)=> {
+          .expect(res => {
             expect(res.body).toStrictEqual({
               items: [
                 {
-                  cluster : {
-                    name : "clusterOne"
+                  cluster: {
+                    name: 'clusterOne',
                   },
                   podMetrics: [],
                   resources: [
                     {
-                      type: "pods",
+                      type: 'pods',
                       resources: [
                         {
                           metadata: {
-                            name: 'pod1'
-                          } 
-                        }
-                      ]
-                    },
-                    {type: "services",
-                     resources: []
-                    },
-                    {type: "configmaps",
-                     resources: []
-                    },
-                    {type: "limitranges",
-                     resources: []
-                    },
-                    {type: "deployments",
-                     resources: []
-                    },
-                    {type: "replicasets",
-                     resources: []
-                    },
-                    {type: "horizontalpodautoscalers",
-                     resources: []
-                    },
-                    {type: "jobs",
-                     resources: []
-                    },
-                    {type: "cronjobs",
-                     resources: []
-                    },
-                    {type: "ingresses",
-                     resources: []
-                    },
-                    {type: "statefulsets",
-                     resources: []
-                    },
-                    {type: "daemonsets",
-                     resources: []
+                            name: 'pod1',
+                          },
+                        },
+                      ],
                     },
                   ],
-                  errors: []
-                }
-              ]
-            })
+                  errors: [],
+                },
+              ],
+            });
           });
       });
-    })
-
+    });
   });
   describe('POST /resources/custom/query', () => {
-
     beforeEach(() => {
       permissions.authorizeConditional.mockReset();
-    })
+    });
 
     // eslint-disable-next-line jest/expect-expect
     it('200 happy path', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -532,7 +471,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when missing custom resources', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -558,7 +499,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when custom resources not array', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -585,7 +528,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when custom resources empty', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -612,7 +557,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when missing entity ref', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -641,7 +588,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when bad entity ref', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -675,7 +624,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('400 when no entity in catalog', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -708,7 +659,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('401 when no Auth header', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -737,7 +690,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('401 when invalid Auth header', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -767,7 +722,9 @@ describe('resourcesRoutes', () => {
     });
     // eslint-disable-next-line jest/expect-expect
     it('403 response if Permission Policy is in place that blocks endpoint', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.DENY}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.DENY }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
@@ -786,11 +743,13 @@ describe('resourcesRoutes', () => {
         })
         .set('Content-Type', 'application/json')
         .set('Authorization', 'Bearer Zm9vYmFy')
-        .expect(403)
+        .expect(403);
     });
     // eslint-disable-next-line jest/expect-expect
     it('500 handle gracefully', async () => {
-      permissions.authorizeConditional.mockReturnValue(Promise.resolve([{result: AuthorizeResult.ALLOW}]))
+      permissions.authorizeConditional.mockReturnValue(
+        Promise.resolve([{ result: AuthorizeResult.ALLOW }]),
+      );
 
       await request(app)
         .post('/resources/custom/query')
