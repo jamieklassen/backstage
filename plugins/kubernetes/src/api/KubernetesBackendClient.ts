@@ -112,18 +112,13 @@ export class KubernetesBackendClient implements KubernetesApi {
     return (await this.handleResponse(response)).items;
   }
 
-  async proxyClient<T extends ApiType>(
-    clusterName: string,
-    ApiClientType: new (server: string) => T,
-    token?: string,
-  ): Promise<T> {
+  async proxy(
+    { name, authProvider, oidcTokenProvider },
+    resource: string,
+    options: object = { headers: {} },
+  ): Promise<unknown> {
     const baseUrl = `${await this.discoveryApi.getBaseUrl('kubernetes')}/proxy`;
-    const client = new ApiClientType(baseUrl);
-    // TODO use const for header name
-    client.defaultHeaders = { 'x-kubernetes-cluster': clusterName };
-    if (token) {
-      client.setDefaultAuthentication({ accessToken: token } as HttpBearerAuth);
-    }
-    return client;
+    options.headers['X-Kubernetes-Cluster'] = name;
+    return fetch(`${baseUrl}${resource}`, options);
   }
 }

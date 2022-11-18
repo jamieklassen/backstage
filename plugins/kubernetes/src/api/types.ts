@@ -44,9 +44,13 @@ export interface KubernetesApi {
   getCustomObjectsByEntity(
     request: CustomObjectsByEntityRequest,
   ): Promise<ObjectsByEntityResponse>;
-  proxyClient<T extends ApiType>(
-    clusterName: string,
-    ApiClientType: new (server: string) => T,
-    token?: string,
-  ): Promise<T>;
+  proxy(
+    cluster: {
+      name: string;
+      authProvider: string;
+      oidcTokenProvider?: string | undefined;
+    },
+    resource: string,
+    options?: object,
+  ): Promise<unknown>;
 }

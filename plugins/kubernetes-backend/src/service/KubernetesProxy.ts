@@ -104,6 +104,16 @@ export class KubernetesProxy {
 
           res.status(500).json(body);
         },
+        onProxyReq: (proxyReq, req, res) => {
+          proxyReq.socket.pause();
+          this.getClusterForRequest(req).then(cluster => {
+            const bearerToken = cluster.serviceAccountToken;
+            if (bearerToken) {
+              proxyReq.setHeader('Authorization', `Bearer ${bearerToken}`);
+            }
+            proxyReq.socket.resume();
+          });
+        },
       });
 
       this.middlewareForClusterName.set(originalCluster.name, middleware);
