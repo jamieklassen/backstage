@@ -34,6 +34,7 @@ import fixture2 from '../src/__fixtures__/2-deployments.json';
 import fixture3 from '../src/__fixtures__/1-cronjobs.json';
 import fixture4 from '../src/__fixtures__/2-cronjobs.json';
 import { TestApiProvider } from '@backstage/test-utils';
+import { ApiType } from '@kubernetes/client-node';
 
 const mockEntity: Entity = {
   apiVersion: 'backstage.io/v1alpha1',
@@ -105,6 +106,14 @@ class MockKubernetesClient implements KubernetesApi {
 
   async getClusters(): Promise<{ name: string; authProvider: string }[]> {
     return [{ name: 'mock-cluster', authProvider: 'serviceAccount' }];
+  }
+
+  async proxyClient<T extends ApiType>(
+    _clusterName: string,
+    ApiClientType: new (server: string) => T,
+    _token?: string,
+  ): Promise<T> {
+    return new ApiClientType('');
   }
 }
 

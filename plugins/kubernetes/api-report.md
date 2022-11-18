@@ -6,6 +6,7 @@
 /// <reference types="react" />
 
 import { ApiRef } from '@backstage/core-plugin-api';
+import { ApiType } from '@kubernetes/client-node';
 import { BackstagePlugin } from '@backstage/core-plugin-api';
 import { ClientPodStatus } from '@backstage/plugin-kubernetes-common';
 import { ClusterAttributes } from '@backstage/plugin-kubernetes-common';
@@ -259,6 +260,12 @@ export interface KubernetesApi {
   getWorkloadsByEntity(
     request: WorkloadsByEntityRequest,
   ): Promise<ObjectsByEntityResponse>;
+  // (undocumented)
+  proxyClient<T extends ApiType>(
+    clusterName: string,
+    ApiClientType: new (server: string) => T,
+    token?: string,
+  ): Promise<T>;
 }
 
 // Warning: (ae-missing-release-tag) "kubernetesApiRef" is exported by the package, but it is missing a release tag (@alpha, @beta, @public, or @internal)
@@ -326,6 +333,12 @@ export class KubernetesBackendClient implements KubernetesApi {
   getWorkloadsByEntity(
     request: WorkloadsByEntityRequest,
   ): Promise<ObjectsByEntityResponse>;
+  // (undocumented)
+  proxyClient<T extends ApiType>(
+    clusterName: string,
+    ApiClientType: new (server: string) => T,
+    token?: string,
+  ): Promise<T>;
 }
 
 // Warning: (ae-forgotten-export) The symbol "KubernetesContentProps" needs to be exported by the entry point index.d.ts

@@ -21,6 +21,7 @@ import {
   CustomObjectsByEntityRequest,
 } from '@backstage/plugin-kubernetes-common';
 import { createApiRef } from '@backstage/core-plugin-api';
+import { ApiType } from '@kubernetes/client-node';
 
 export const kubernetesApiRef = createApiRef<KubernetesApi>({
   id: 'plugin.kubernetes.service',
@@ -43,4 +44,9 @@ export interface KubernetesApi {
   getCustomObjectsByEntity(
     request: CustomObjectsByEntityRequest,
   ): Promise<ObjectsByEntityResponse>;
+  proxyClient<T extends ApiType>(
+    clusterName: string,
+    ApiClientType: new (server: string) => T,
+    token?: string,
+  ): Promise<T>;
 }

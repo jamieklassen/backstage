@@ -23,6 +23,7 @@ import {
 } from '@backstage/plugin-kubernetes-common';
 import { DiscoveryApi, IdentityApi } from '@backstage/core-plugin-api';
 import { stringifyEntityRef } from '@backstage/catalog-model';
+import { ApiType, HttpBearerAuth } from '@kubernetes/client-node';
 
 export class KubernetesBackendClient implements KubernetesApi {
   private readonly discoveryApi: DiscoveryApi;
@@ -109,5 +110,20 @@ export class KubernetesBackendClient implements KubernetesApi {
     });
 
     return (await this.handleResponse(response)).items;
+  }
+
+  async proxyClient<T extends ApiType>(
+    clusterName: string,
+    ApiClientType: new (server: string) => T,
+    token?: string,
+  ): Promise<T> {
+    const baseUrl = `${await this.discoveryApi.getBaseUrl('kubernetes')}/proxy`;
+    const client = new ApiClientType(baseUrl);
+    // TODO use const for header name
+    client.defaultHeaders = { 'x-kubernetes-cluster': clusterName };
+    if (token) {
+      client.setDefaultAuthentication({ accessToken: token } as HttpBearerAuth);
+    }
+    return client;
   }
 }
