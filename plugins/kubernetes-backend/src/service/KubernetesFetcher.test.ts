@@ -16,8 +16,12 @@
 
 import { getVoidLogger } from '@backstage/backend-common';
 import { KubernetesClientBasedFetcher } from './KubernetesFetcher';
+import { KubernetesClientProvider } from './KubernetesClientProvider';
 import { ObjectToFetch } from '../types/types';
 import { topPods } from '@kubernetes/client-node';
+import { MockedRequest, rest } from 'msw';
+import { setupServer } from 'msw/node';
+import { setupRequestMockHandlers } from '@backstage/backend-test-utils';
 
 jest.mock('@kubernetes/client-node', () => ({
   ...jest.requireActual('@kubernetes/client-node'),
@@ -56,45 +60,42 @@ const POD_METRICS_FIXTURE = {
 
 describe('KubernetesFetcher', () => {
   describe('fetchObjectsForService', () => {
-    let clientMock: any;
-    let kubernetesClientProvider: any;
     let sut: KubernetesClientBasedFetcher;
+    const worker = setupServer();
+    setupRequestMockHandlers(worker);
 
     beforeEach(() => {
-      jest.resetAllMocks();
-      clientMock = {
-        listClusterCustomObject: jest.fn(),
-        listNamespacedCustomObject: jest.fn(),
-        addInterceptor: jest.fn(),
-      };
-
-      kubernetesClientProvider = {
-        getCustomObjectsClient: jest.fn(() => clientMock),
-      };
-
       sut = new KubernetesClientBasedFetcher({
-        kubernetesClientProvider,
+        kubernetesClientProvider: new KubernetesClientProvider(),
         logger: getVoidLogger(),
       });
     });
+
+    const labels = (req: MockedRequest) => {
+      const selectorParam = req.url.searchParams.get('labelSelector');
+      if (selectorParam) {
+        const [key, value] = selectorParam.split('=');
+        return { [key]: value };
+      }
+      return {};
+    };
 
     const testErrorResponse = async (
       errorResponse: any,
       expectedResult: any,
     ) => {
-      clientMock.listClusterCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'pod-name',
-              },
-            },
-          ],
-        },
-      });
-
-      clientMock.listClusterCustomObject.mockRejectedValue(errorResponse);
+      worker.use(
+        rest.get('http://localhost:9999/api/v1/pods', (req, res, ctx) =>
+          res(
+            ctx.json({
+              items: [{ metadata: { name: 'pod-name', labels: labels(req) } }],
+            }),
+          ),
+        ),
+        rest.get('http://localhost:9999/api/v1/services', (_, res, ctx) => {
+          return res(ctx.status(errorResponse.response.statusCode));
+        }),
+      );
 
       const result = await sut.fetchObjectsForService({
         serviceId: 'some-service',
@@ -118,66 +119,32 @@ describe('KubernetesFetcher', () => {
               {
                 metadata: {
                   name: 'pod-name',
+                  labels: { 'backstage.io/kubernetes-id': 'some-service' },
                 },
               },
             ],
           },
         ],
       });
-
-      expect(clientMock.listClusterCustomObject.mock.calls.length).toBe(2);
-
-      expect(clientMock.listClusterCustomObject.mock.calls[0]).toEqual([
-        '',
-        'v1',
-        'pods',
-        '',
-        false,
-        '',
-        '',
-        'backstage.io/kubernetes-id=some-service',
-      ]);
-
-      expect(clientMock.listClusterCustomObject.mock.calls[1]).toEqual([
-        '',
-        'v1',
-        'services',
-        '',
-        false,
-        '',
-        '',
-        'backstage.io/kubernetes-id=some-service',
-      ]);
-
-      expect(
-        kubernetesClientProvider.getCustomObjectsClient.mock.calls.length,
-      ).toBe(2);
     };
 
     it('should return pods, services', async () => {
-      clientMock.listClusterCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'pod-name',
-              },
-            },
-          ],
-        },
-      });
-
-      clientMock.listClusterCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'service-name',
-              },
-            },
-          ],
-        },
-      });
+      worker.use(
+        rest.get('http://localhost:9999/api/v1/pods', (req, res, ctx) =>
+          ctx.json({
+            items: [{ metadata: { name: 'pod-name', labels: labels(req) } }],
+          }),
+        ),
+        rest.get('http://localhost:9999/api/v1/services', (req, res, ctx) =>
+          res(
+            ctx.json({
+              items: [
+                { metadata: { name: 'service-name', labels: labels(req) } },
+              ],
+            }),
+          ),
+        ),
+      );
 
       const result = await sut.fetchObjectsForService({
         serviceId: 'some-service',
@@ -201,6 +168,7 @@ describe('KubernetesFetcher', () => {
               {
                 metadata: {
                   name: 'pod-name',
+                  labels: { 'backstage.io/kubernetes-id': 'some-service' },
                 },
               },
             ],
@@ -211,77 +179,44 @@ describe('KubernetesFetcher', () => {
               {
                 metadata: {
                   name: 'service-name',
+                  labels: { 'backstage.io/kubernetes-id': 'some-service' },
                 },
               },
             ],
           },
         ],
       });
-
-      expect(clientMock.listClusterCustomObject.mock.calls.length).toBe(2);
-
-      expect(clientMock.listClusterCustomObject.mock.calls[0]).toEqual([
-        '',
-        'v1',
-        'pods',
-        '',
-        false,
-        '',
-        '',
-        'backstage.io/kubernetes-id=some-service',
-      ]);
-
-      expect(clientMock.listClusterCustomObject.mock.calls[1]).toEqual([
-        '',
-        'v1',
-        'services',
-        '',
-        false,
-        '',
-        '',
-        'backstage.io/kubernetes-id=some-service',
-      ]);
-
-      expect(
-        kubernetesClientProvider.getCustomObjectsClient.mock.calls.length,
-      ).toBe(2);
     });
     it('should return pods, services and customobjects', async () => {
-      clientMock.listClusterCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'pod-name',
-              },
-            },
-          ],
-        },
-      });
-
-      clientMock.listClusterCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'service-name',
-              },
-            },
-          ],
-        },
-      });
-
-      clientMock.listClusterCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'something-else',
-              },
-            },
-          ],
-        },
-      });
+      worker.use(
+        rest.get('http://localhost:9999/api/v1/pods', (req, res, ctx) =>
+          res(
+            ctx.json({
+              items: [{ metadata: { name: 'pod-name', labels: labels(req) } }],
+            }),
+          ),
+        ),
+        rest.get('http://localhost:9999/api/v1/services', (req, res, ctx) =>
+          res(
+            ctx.json({
+              items: [
+                { metadata: { name: 'service-name', labels: labels(req) } },
+              ],
+            }),
+          ),
+        ),
+        rest.get(
+          'http://localhost:9999/apis/some-group/v2/things',
+          (req, res, ctx) =>
+            res(
+              ctx.json({
+                items: [
+                  { metadata: { name: 'something-else', labels: labels(req) } },
+                ],
+              }),
+            ),
+        ),
+      );
 
       const result = await sut.fetchObjectsForService({
         serviceId: 'some-service',
@@ -312,6 +247,7 @@ describe('KubernetesFetcher', () => {
               {
                 metadata: {
                   name: 'pod-name',
+                  labels: { 'backstage.io/kubernetes-id': 'some-service' },
                 },
               },
             ],
@@ -322,6 +258,7 @@ describe('KubernetesFetcher', () => {
               {
                 metadata: {
                   name: 'service-name',
+                  labels: { 'backstage.io/kubernetes-id': 'some-service' },
                 },
               },
             ],
@@ -332,51 +269,13 @@ describe('KubernetesFetcher', () => {
               {
                 metadata: {
                   name: 'something-else',
+                  labels: { 'backstage.io/kubernetes-id': 'some-service' },
                 },
               },
             ],
           },
         ],
       });
-
-      expect(clientMock.listClusterCustomObject.mock.calls.length).toBe(3);
-
-      expect(clientMock.listClusterCustomObject.mock.calls[0]).toEqual([
-        '',
-        'v1',
-        'pods',
-        '',
-        false,
-        '',
-        '',
-        'backstage.io/kubernetes-id=some-service',
-      ]);
-
-      expect(clientMock.listClusterCustomObject.mock.calls[1]).toEqual([
-        '',
-        'v1',
-        'services',
-        '',
-        false,
-        '',
-        '',
-        'backstage.io/kubernetes-id=some-service',
-      ]);
-
-      expect(clientMock.listClusterCustomObject.mock.calls[2]).toEqual([
-        'some-group',
-        'v2',
-        'things',
-        '',
-        false,
-        '',
-        '',
-        'backstage.io/kubernetes-id=some-service',
-      ]);
-
-      expect(
-        kubernetesClientProvider.getCustomObjectsClient.mock.calls.length,
-      ).toBe(3);
     });
     // they're in testErrorResponse
     // eslint-disable-next-line jest/expect-expect
@@ -385,16 +284,11 @@ describe('KubernetesFetcher', () => {
         {
           response: {
             statusCode: 400,
-            request: {
-              uri: {
-                pathname: '/some/path',
-              },
-            },
           },
         },
         {
           errorType: 'BAD_REQUEST',
-          resourcePath: '/some/path',
+          resourcePath: '/api/v1/services',
           statusCode: 400,
         },
       );
@@ -406,16 +300,11 @@ describe('KubernetesFetcher', () => {
         {
           response: {
             statusCode: 401,
-            request: {
-              uri: {
-                pathname: '/some/path',
-              },
-            },
           },
         },
         {
           errorType: 'UNAUTHORIZED_ERROR',
-          resourcePath: '/some/path',
+          resourcePath: '/api/v1/services',
           statusCode: 401,
         },
       );
@@ -427,16 +316,11 @@ describe('KubernetesFetcher', () => {
         {
           response: {
             statusCode: 500,
-            request: {
-              uri: {
-                pathname: '/some/path',
-              },
-            },
           },
         },
         {
           errorType: 'SYSTEM_ERROR',
-          resourcePath: '/some/path',
+          resourcePath: '/api/v1/services',
           statusCode: 500,
         },
       );
@@ -448,46 +332,36 @@ describe('KubernetesFetcher', () => {
         {
           response: {
             statusCode: 900,
-            request: {
-              uri: {
-                pathname: '/some/path',
-              },
-            },
           },
         },
         {
           errorType: 'UNKNOWN_ERROR',
-          resourcePath: '/some/path',
+          resourcePath: '/api/v1/services',
           statusCode: 900,
         },
       );
     });
-    it('should always add a labelSelector query', async () => {
-      clientMock.listClusterCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'pod-name',
-              },
-            },
-          ],
-        },
-      });
+    it('should respect labelSelector', async () => {
+      worker.use(
+        rest.get('http://localhost:9999/api/v1/pods', (req, res, ctx) =>
+          res(
+            ctx.json({
+              items: [{ metadata: { name: 'pod-name', labels: labels(req) } }],
+            }),
+          ),
+        ),
+        rest.get('http://localhost:9999/api/v1/services', (req, res, ctx) =>
+          res(
+            ctx.json({
+              items: [
+                { metadata: { name: 'service-name', labels: labels(req) } },
+              ],
+            }),
+          ),
+        ),
+      );
 
-      clientMock.listClusterCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'service-name',
-              },
-            },
-          ],
-        },
-      });
-
-      await sut.fetchObjectsForService({
+      const result = await sut.fetchObjectsForService({
         serviceId: 'some-service',
         clusterDetails: {
           name: 'cluster1',
@@ -496,41 +370,65 @@ describe('KubernetesFetcher', () => {
           authProvider: 'serviceAccount',
         },
         objectTypesToFetch: OBJECTS_TO_FETCH,
-        labelSelector: '',
+        labelSelector: 'service-label=value',
         customResources: [],
       });
 
-      const mockCall = clientMock.listClusterCustomObject.mock.calls[0];
-      const actualSelector = mockCall[mockCall.length - 1];
-      const expectedSelector = 'backstage.io/kubernetes-id=some-service';
-      expect(actualSelector).toBe(expectedSelector);
+      expect(result).toStrictEqual({
+        errors: [],
+        responses: [
+          {
+            type: 'pods',
+            resources: [
+              {
+                metadata: {
+                  name: 'pod-name',
+                  labels: { 'service-label': 'value' },
+                },
+              },
+            ],
+          },
+          {
+            type: 'services',
+            resources: [
+              {
+                metadata: {
+                  name: 'service-name',
+                  labels: { 'service-label': 'value' },
+                },
+              },
+            ],
+          },
+        ],
+      });
     });
     it('should use namespace if provided', async () => {
-      clientMock.listNamespacedCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'pod-name',
-              },
-            },
-          ],
-        },
-      });
+      worker.use(
+        rest.get(
+          'http://localhost:9999/api/v1/namespaces/some-namespace/pods',
+          (req, res, ctx) =>
+            res(
+              ctx.json({
+                items: [
+                  { metadata: { name: 'pod-name', labels: labels(req) } },
+                ],
+              }),
+            ),
+        ),
+        rest.get(
+          'http://localhost:9999/api/v1/namespaces/some-namespace/services',
+          (req, res, ctx) =>
+            res(
+              ctx.json({
+                items: [
+                  { metadata: { name: 'service-name', labels: labels(req) } },
+                ],
+              }),
+            ),
+        ),
+      );
 
-      clientMock.listNamespacedCustomObject.mockResolvedValueOnce({
-        body: {
-          items: [
-            {
-              metadata: {
-                name: 'service-name',
-              },
-            },
-          ],
-        },
-      });
-
-      await sut.fetchObjectsForService({
+      const result = await sut.fetchObjectsForService({
         serviceId: 'some-service',
         clusterDetails: {
           name: 'cluster1',
@@ -544,9 +442,33 @@ describe('KubernetesFetcher', () => {
         customResources: [],
       });
 
-      const mockCall = clientMock.listNamespacedCustomObject.mock.calls[0];
-      const namespace = mockCall[2];
-      expect(namespace).toBe('some-namespace');
+      expect(result).toStrictEqual({
+        errors: [],
+        responses: [
+          {
+            type: 'pods',
+            resources: [
+              {
+                metadata: {
+                  name: 'pod-name',
+                  labels: { 'backstage.io/kubernetes-id': 'some-service' },
+                },
+              },
+            ],
+          },
+          {
+            type: 'services',
+            resources: [
+              {
+                metadata: {
+                  name: 'service-name',
+                  labels: { 'backstage.io/kubernetes-id': 'some-service' },
+                },
+              },
+            ],
+          },
+        ],
+      });
     });
   });
 
