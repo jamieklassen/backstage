@@ -112,7 +112,15 @@ describe('KubernetesFetcher', () => {
           ),
         ),
         rest.get('http://localhost:9999/api/v1/services', (_, res, ctx) => {
-          return res(ctx.status(errorResponse.response.statusCode));
+          return res(
+            ctx.status(errorResponse.response.statusCode),
+            ctx.json({
+              kind: 'Status',
+              apiVersion: 'v1',
+              status: 'Failure',
+              code: errorResponse.response.statusCode,
+            }),
+          );
         }),
       );
 
@@ -331,7 +339,18 @@ describe('KubernetesFetcher', () => {
           ),
         ),
         rest.get('http://localhost:9999/api/v1/services', (req, res, ctx) =>
-          res(checkToken(req, ctx, 'other-token')),
+          res(
+            checkToken(req, ctx, 'other-token'),
+            ctx.json({
+              kind: 'Status',
+              apiVersion: 'v1',
+              metadata: {},
+              status: 'Failure',
+              message: 'Unauthorized',
+              reason: 'Unauthorized',
+              code: 401,
+            }),
+          ),
         ),
       );
 
@@ -405,7 +424,7 @@ describe('KubernetesFetcher', () => {
     });
     it('fails on a network error', async () => {
       worker.use(
-        rest.get('http://badurl.does.not.exist/api/v1/pods', (req, res, ctx) =>
+        rest.get('http://badurl.does.not.exist/api/v1/pods', (_, res) =>
           res.networkError('getaddrinfo ENOTFOUND badurl.does.not.exist'),
         ),
         rest.get(
