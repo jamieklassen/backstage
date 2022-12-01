@@ -46,6 +46,7 @@ import {
 } from '@backstage/plugin-permission-common';
 import { NotAllowedError } from '@backstage/errors';
 import { kubernetesClusterReadPermission } from '@backstage/plugin-kubernetes-common';
+import { getBearerTokenFromAuthorizationHeader } from '@backstage/plugin-auth-node';
 
 /**
  *
@@ -296,11 +297,21 @@ export class KubernetesBuilder {
       }
     });
 
-    router.get('/clusters', async (_, res) => {
+    router.get('/clusters', async (req, res) => {
+      const token = getBearerTokenFromAuthorizationHeader(
+        req.header('authorization'),
+      );
+
       const authorizeResponse = (
-        await permissionApi.authorize([
-          { permission: kubernetesClusterReadPermission },
-        ])
+        await permissionApi.authorizeConditional(
+          [
+            {
+              permission: kubernetesClusterReadPermission,
+              resourceRef: req.body.id,
+            },
+          ],
+          { token },
+        )
       )[0];
 
       if (authorizeResponse.result === AuthorizeResult.DENY) {
