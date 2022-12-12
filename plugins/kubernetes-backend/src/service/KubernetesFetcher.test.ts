@@ -28,6 +28,12 @@ import {
 import { setupServer } from 'msw/node';
 import { setupRequestMockHandlers } from '@backstage/backend-test-utils';
 import mockFs from 'mock-fs';
+import * as https from 'https';
+
+jest.mock('https', () => ({
+  ...jest.requireActual('https'),
+  Agent: jest.fn(),
+}));
 
 const OBJECTS_TO_FETCH = new Set<ObjectToFetch>([
   {
@@ -166,6 +172,10 @@ describe('KubernetesFetcher', () => {
     };
 
     beforeEach(() => {
+      jest.resetAllMocks();
+      (https.Agent as jest.Mock).mockImplementation(
+        jest.requireActual('https').Agent,
+      );
       sut = new KubernetesClientBasedFetcher({
         kubernetesClientProvider: new KubernetesClientProvider(),
         logger,
@@ -519,6 +529,44 @@ describe('KubernetesFetcher', () => {
           },
         ],
       });
+    });
+    it('should trust specified caData', async () => {
+      worker.use(
+        rest.get('https://localhost:9999/api/v1/pods', (req, res, ctx) =>
+          res(
+            checkToken(req, ctx, 'token'),
+            withLabels(req, ctx, {
+              items: [{ metadata: { name: 'pod-name' } }],
+            }),
+          ),
+        ),
+        rest.get('https://localhost:9999/api/v1/services', (req, res, ctx) =>
+          res(
+            checkToken(req, ctx, 'token'),
+            withLabels(req, ctx, {
+              items: [{ metadata: { name: 'service-name' } }],
+            }),
+          ),
+        ),
+      );
+
+      const result = await sut.fetchObjectsForService({
+        serviceId: 'some-service',
+        clusterDetails: {
+          name: 'cluster1',
+          url: 'https://localhost:9999',
+          serviceAccountToken: 'token',
+          authProvider: 'serviceAccount',
+          caData: 'MYCA',
+        },
+        objectTypesToFetch: OBJECTS_TO_FETCH,
+        labelSelector: '',
+        customResources: [],
+      });
+
+      const agentCalls = (https.Agent as jest.Mock).mock.calls;
+      expect(agentCalls).toHaveLength(1);
+      expect(agentCalls[0][0].ca.toString('base64')).toEqual('MYCA');
     });
     it('should use namespace if provided', async () => {
       worker.use(
