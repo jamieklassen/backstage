@@ -21,130 +21,164 @@ import { rest } from 'msw';
 import { setupServer } from 'msw/node';
 import { AuthResolverContext } from '../types';
 import express from 'express';
+import { OAuthStartRequest } from '../../lib/oauth';
 
-describe('MicrosoftAuthProvider#handle', () => {
+describe('MicrosoftAuthProvider', () => {
   const server = setupServer();
   setupRequestMockHandlers(server);
 
-  beforeEach(() => {
-    server.use(
-      rest.post(
-        'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-        (_, res, ctx) =>
+  describe('#start', () => {
+    it('redirects to authorize URL', async () => {
+      const provider = new MicrosoftAuthProvider({
+        logger: getVoidLogger(),
+        resolverContext: {} as AuthResolverContext,
+        authHandler: () => Promise.resolve({ profile: {} }),
+        clientId: 'clientId',
+        clientSecret: 'clientSecret',
+        callbackUrl: 'http://backstage.test/api/auth/microsoft/handler/frame',
+      });
+
+      const response = await provider.start({
+        headers: { host: 'backstage.test' },
+        scope: 'email openid profile User.Read',
+        state: {
+          nonce: 'nonce',
+          env: 'development',
+        },
+      } as unknown as OAuthStartRequest);
+
+      expect(response).toEqual({
+        url:
+          'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' +
+          '?response_type=code' +
+          '&redirect_uri=http%3A%2F%2Fbackstage.test%2Fapi%2Fauth%2Fmicrosoft%2Fhandler%2Fframe&scope=email%20openid%20profile%20User.Read' +
+          '&state=6e6f6e63653d6e6f6e636526656e763d646576656c6f706d656e74' +
+          '&client_id=clientId',
+      });
+    });
+  });
+  describe('#handle', () => {
+    beforeEach(() => {
+      server.use(
+        rest.post(
+          'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+          (_, res, ctx) =>
+            res(
+              ctx.json({
+                token_type: 'Bearer',
+                scope: 'email openid profile User.Read',
+                expires_in: 123,
+                ext_expires_in: 123,
+                access_token: 'accessToken',
+                refresh_token: 'refreshToken',
+                id_token: 'idToken',
+              }),
+            ),
+        ),
+        rest.get('https://graph.microsoft.com/v1.0/me/', (_, res, ctx) =>
           res(
             ctx.json({
-              token_type: 'Bearer',
-              scope: 'email openid profile User.Read',
-              expires_in: 123,
-              ext_expires_in: 123,
-              access_token: 'accessToken',
-              refresh_token: 'refreshToken',
-              id_token: 'idToken',
+              id: 'conrad',
+              displayName: 'Conrad',
+              surname: 'Ribas',
+              givenName: 'Francisco',
+              mail: 'conrad@example.com',
             }),
           ),
-      ),
-      rest.get('https://graph.microsoft.com/v1.0/me/', (_, res, ctx) =>
-        res(
-          ctx.json({
-            id: 'conrad',
-            displayName: 'Conrad',
-            surname: 'Ribas',
-            givenName: 'Francisco',
-            mail: 'conrad@example.com',
-          }),
         ),
-      ),
-      rest.get(
-        'https://graph.microsoft.com/v1.0/me/photos/*',
-        async (_, res, ctx) => {
-          const imageBuffer = new Uint8Array([104, 111, 119, 100, 121]).buffer;
-          return res(
-            ctx.set('Content-Length', imageBuffer.byteLength.toString()),
-            ctx.set('Content-Type', 'image/jpeg'),
-            ctx.body(imageBuffer),
-          );
-        },
-      ),
-    );
-  });
+        rest.get(
+          'https://graph.microsoft.com/v1.0/me/photos/*',
+          async (_, res, ctx) => {
+            const imageBuffer = new Uint8Array([104, 111, 119, 100, 121])
+              .buffer;
+            return res(
+              ctx.set('Content-Length', imageBuffer.byteLength.toString()),
+              ctx.set('Content-Type', 'image/jpeg'),
+              ctx.body(imageBuffer),
+            );
+          },
+        ),
+      );
+    });
 
-  it('returns providerInfo and profile', async () => {
-    const provider = new MicrosoftAuthProvider({
-      logger: getVoidLogger(),
-      resolverContext: {} as AuthResolverContext,
-      authHandler: async ({ fullProfile }) => ({
+    it('returns providerInfo and profile', async () => {
+      const provider = new MicrosoftAuthProvider({
+        logger: getVoidLogger(),
+        resolverContext: {} as AuthResolverContext,
+        authHandler: async ({ fullProfile }) => ({
+          profile: {
+            email: fullProfile.emails![0]!.value,
+            displayName: fullProfile.displayName,
+            picture: 'http://microsoft.com/lols',
+          },
+        }),
+        clientId: 'mock',
+        clientSecret: 'mock',
+        callbackUrl: 'http://backstage.test/api/auth/microsoft/handler/frame',
+      });
+
+      const { response } = await provider.handler({
+        method: 'GET',
+        url: 'http://backstage.test/api/auth/microsoft/handler/frame',
+        query: {
+          code: 'authorizationcode',
+        },
+        headers: { host: 'backstage.test' },
+        connection: {},
+      } as unknown as express.Request);
+
+      expect(response).toEqual({
+        providerInfo: {
+          accessToken: 'accessToken',
+          expiresInSeconds: 123,
+          idToken: 'idToken',
+          scope: 'email openid profile User.Read',
+        },
         profile: {
-          email: fullProfile.emails![0]!.value,
-          displayName: fullProfile.displayName,
+          email: 'conrad@example.com',
+          displayName: 'Conrad',
           picture: 'http://microsoft.com/lols',
         },
-      }),
-      clientId: 'mock',
-      clientSecret: 'mock',
-      callbackUrl: 'http://backstage.test/api/auth/microsoft/handler/frame',
+      });
     });
 
-    const { response } = await provider.handler({
-      method: 'GET',
-      url: 'http://backstage.test/api/auth/microsoft/handler/frame',
-      query: {
-        code: 'authorizationcode',
-      },
-      headers: { host: 'backstage.test' },
-      connection: {},
-    } as unknown as express.Request);
-
-    expect(response).toEqual({
-      providerInfo: {
-        accessToken: 'accessToken',
-        expiresInSeconds: 123,
-        idToken: 'idToken',
-        scope: 'email openid profile User.Read',
-      },
-      profile: {
-        email: 'conrad@example.com',
-        displayName: 'Conrad',
-        picture: 'http://microsoft.com/lols',
-      },
-    });
-  });
-
-  it('returns base64 encoded photo data', async () => {
-    const provider = new MicrosoftAuthProvider({
-      logger: getVoidLogger(),
-      resolverContext: {} as AuthResolverContext,
-      authHandler: async ({ fullProfile }) => ({
-        profile: {
-          email: fullProfile.emails![0]!.value,
-          displayName: fullProfile.displayName,
-          picture: 'http://microsoft.com/lols',
+    it('returns base64 encoded photo data', async () => {
+      const provider = new MicrosoftAuthProvider({
+        logger: getVoidLogger(),
+        resolverContext: {} as AuthResolverContext,
+        authHandler: async ({ fullProfile }) => ({
+          profile: {
+            email: fullProfile.emails![0]!.value,
+            displayName: fullProfile.displayName,
+            picture: 'http://microsoft.com/lols',
+          },
+        }),
+        clientId: 'mock',
+        clientSecret: 'mock',
+        callbackUrl: 'mock',
+        // define resolver to return user `info` for photo validation
+        signInResolver: async (info, _) => {
+          return {
+            id: 'user.name',
+            token: 'token',
+            info: info,
+          };
         },
-      }),
-      clientId: 'mock',
-      clientSecret: 'mock',
-      callbackUrl: 'mock',
-      // define resolver to return user `info` for photo validation
-      signInResolver: async (info, _) => {
-        return {
-          id: 'user.name',
-          token: 'token',
-          info: info,
-        };
-      },
+      });
+
+      const { response } = await provider.handler({
+        method: 'GET',
+        url: 'http://backstage.test/api/auth/microsoft/handler/frame',
+        query: {
+          code: 'authorizationcode',
+        },
+        headers: { host: 'backstage.test' },
+        connection: {},
+      } as unknown as express.Request);
+
+      const overloadedIdentity = response.backstageIdentity as any;
+      const photo = overloadedIdentity.info.result.fullProfile.photos[0];
+      expect(photo.value).toEqual('data:image/jpeg;base64,aG93ZHk=');
     });
-
-    const { response } = await provider.handler({
-      method: 'GET',
-      url: 'http://backstage.test/api/auth/microsoft/handler/frame',
-      query: {
-        code: 'authorizationcode',
-      },
-      headers: { host: 'backstage.test' },
-      connection: {},
-    } as unknown as express.Request);
-
-    const overloadedIdentity = response.backstageIdentity as any;
-    const photo = overloadedIdentity.info.result.fullProfile.photos[0];
-    expect(photo.value).toEqual('data:image/jpeg;base64,aG93ZHk=');
   });
 });
