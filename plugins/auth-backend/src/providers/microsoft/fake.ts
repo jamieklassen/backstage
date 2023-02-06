@@ -34,7 +34,7 @@ export class FakeMicrosoftAPI {
   }
   token(formData: URLSearchParams) {
     const scope = formData.get('scope') ?? 'email openid profile User.Read';
-    if (formData.get('grant_type') === 'refresh_token' && scope) {
+    if (formData.get('grant_type') === 'refresh_token') {
       return {
         access_token: this.tokenWithScope(scope),
         refresh_token: 'newRefreshToken',

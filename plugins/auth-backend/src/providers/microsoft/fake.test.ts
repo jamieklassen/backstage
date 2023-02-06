@@ -14,19 +14,82 @@
  * limitations under the License.
  */
 import { FakeMicrosoftAPI } from './fake';
+import { setupServer } from 'msw/node';
+import { setupRequestMockHandlers } from '@backstage/backend-test-utils';
+import fetch from 'node-fetch';
 
 describe('FakeMicrosoftAPI', () => {
-  it('exchanges auth codes', () => {
-    const scope = 'useless placeholder, for now';
-    const api = new FakeMicrosoftAPI();
+  const api = new FakeMicrosoftAPI();
 
-    const { access_token } = api.token(
-      new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: api.generateAuthCode(scope),
-      }),
-    );
+  describe('#token', () => {
+    it('exchanges auth codes', () => {
+      const scope = 'useless placeholder, for now';
 
-    expect(api.hasScope(access_token, scope)).toBe(true);
+      const { access_token } = api.token(
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: api.generateAuthCode(scope),
+        }),
+      );
+
+      expect(api.hasScope(access_token, scope)).toBe(true);
+    });
+
+    it('refreshes tokens', () => {
+      const { access_token } = api.token(
+        new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: 'banana; ignored value',
+        }),
+      );
+
+      expect(api.hasScope(access_token, 'email openid profile User.Read')).toBe(
+        true,
+      );
+    });
+  });
+
+  describe('#handlers', () => {
+    const server = setupServer();
+    setupRequestMockHandlers(server);
+
+    beforeEach(() => {
+      server.use(...api.handlers());
+    });
+
+    describe('profile endpoint', () => {
+      const url = 'https://graph.microsoft.com/v1.0/me/';
+
+      it('returns user profile', () => {
+        const profile = fetch(url, {
+          headers: {
+            authorization: `Bearer ${api.tokenWithScope('User.Read')}`,
+          },
+        }).then(r => r.json());
+
+        return expect(profile).resolves.toMatchObject({
+          mail: 'conrad@example.com',
+        });
+      });
+
+      it('forbids access when microsoft graph scope is missing', () => {
+        return expect(
+          fetch(url, {
+            headers: { authorization: `Bearer ${api.tokenWithScope('other')}` },
+          }),
+        ).resolves.toMatchObject({ status: 403 });
+      });
+    });
+    describe('photos endpoint', () => {
+      const url = 'https://graph.microsoft.com/v1.0/me/photos/48x48/$value';
+
+      it('forbids access when microsoft graph scope is missing', () => {
+        return expect(
+          fetch(url, {
+            headers: { authorization: `Bearer ${api.tokenWithScope('other')}` },
+          }),
+        ).resolves.toMatchObject({ status: 403 });
+      });
+    });
   });
 });
