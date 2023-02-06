@@ -23,23 +23,34 @@ describe('FakeMicrosoftAPI', () => {
 
   describe('#token', () => {
     it('exchanges auth codes', () => {
-      const scope = 'useless placeholder, for now';
-
       const { access_token } = api.token(
         new URLSearchParams({
           grant_type: 'authorization_code',
-          code: api.generateAuthCode(scope),
+          code: api.generateAuthCode('User.Read'),
         }),
       );
 
-      expect(api.hasScope(access_token, scope)).toBe(true);
+      expect(api.hasScope(access_token, 'User.Read')).toBe(true);
+    });
+
+    it('supports scopes for the first requested audience only', () => {
+      const { access_token } = api.token(
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: api.generateAuthCode('someaudience/somescope User.Read'),
+        }),
+      );
+
+      expect(api.hasScope(access_token, 'User.Read')).toBe(false);
     });
 
     it('refreshes tokens', () => {
       const { access_token } = api.token(
         new URLSearchParams({
           grant_type: 'refresh_token',
-          refresh_token: 'banana; ignored value',
+          refresh_token: api.generateRefreshToken(
+            'email openid profile User.Read',
+          ),
         }),
       );
 
@@ -73,22 +84,23 @@ describe('FakeMicrosoftAPI', () => {
       });
 
       it('forbids access when microsoft graph scope is missing', () => {
-        return expect(
-          fetch(url, {
-            headers: { authorization: `Bearer ${api.tokenWithScope('other')}` },
-          }),
-        ).resolves.toMatchObject({ status: 403 });
+        const res = fetch(url, {
+          headers: { authorization: `Bearer ${api.tokenWithScope('other')}` },
+        });
+
+        return expect(res).resolves.toMatchObject({ status: 403 });
       });
     });
+
     describe('photos endpoint', () => {
       const url = 'https://graph.microsoft.com/v1.0/me/photos/48x48/$value';
 
       it('forbids access when microsoft graph scope is missing', () => {
-        return expect(
-          fetch(url, {
-            headers: { authorization: `Bearer ${api.tokenWithScope('other')}` },
-          }),
-        ).resolves.toMatchObject({ status: 403 });
+        const res = fetch(url, {
+          headers: { authorization: `Bearer ${api.tokenWithScope('other')}` },
+        });
+
+        return expect(res).resolves.toMatchObject({ status: 403 });
       });
     });
   });

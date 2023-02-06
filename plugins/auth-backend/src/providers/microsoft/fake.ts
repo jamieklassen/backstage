@@ -17,10 +17,31 @@ import { rest } from 'msw';
 import { decodeJwt } from 'jose';
 
 export class FakeMicrosoftAPI {
-  generateAuthCode(scope: string) {
-    return scope;
+  generateAuthCode(scopeClaim: string): string {
+    const audience = scope => {
+      if (scope.includes('/')) {
+        return scope.split('/')[0];
+      }
+      switch (scope) {
+        case 'email':
+        case 'openid':
+        case 'profile': {
+          return 'openid';
+        }
+        default:
+          return 'https://graph.microsoft.com';
+      }
+    };
+    const scopes = scopeClaim.split(' ');
+    const firstAudience = scopes.map(audience).find(aud => aud !== 'openid');
+    return scopes
+      .filter(s => [firstAudience, 'openid'].includes(audience(s)))
+      .join(' ');
   }
-  tokenWithScope(scope: string) {
+  generateRefreshToken(scopeClaim: string): string {
+    return this.generateAuthCode(scopeClaim);
+  }
+  tokenWithScope(scope: string): string {
     return `header.${Buffer.from(JSON.stringify({ scp: scope })).toString(
       'base64',
     )}.signature`;
@@ -33,18 +54,20 @@ export class FakeMicrosoftAPI {
     return (decodeJwt(token).scp as string).includes(scope);
   }
   token(formData: URLSearchParams) {
-    const scope = formData.get('scope') ?? 'email openid profile User.Read';
     if (formData.get('grant_type') === 'refresh_token') {
+      const scope = formData.get('scope') ?? formData.get('refresh_token')!;
       return {
         access_token: this.tokenWithScope(scope),
-        refresh_token: 'newRefreshToken',
+        refresh_token: scope,
         scope,
       };
     }
+    const code = formData.get('code')!;
     return {
-      access_token: this.exchangeCode(formData.get('code')!),
-      refresh_token: 'refreshToken',
-      scope,
+      access_token: this.exchangeCode(code),
+      refresh_token: code,
+      scope: code,
+      id_token: 'header.e30K.signature',
     };
   }
   handlers() {
@@ -58,7 +81,6 @@ export class FakeMicrosoftAPI {
               token_type: 'Bearer',
               expires_in: 123,
               ext_expires_in: 123,
-              id_token: 'header.e30K.signature',
             }),
           );
         },

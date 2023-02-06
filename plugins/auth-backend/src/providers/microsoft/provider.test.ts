@@ -166,7 +166,7 @@ describe('MicrosoftAuthProvider', () => {
 
       expect(res.cookie).toHaveBeenCalledWith(
         'microsoft-refresh-token',
-        'refreshToken',
+        microsoftApi.generateRefreshToken('email openid profile User.Read'),
         {
           domain: 'backstage.test',
           httpOnly: true,
@@ -238,7 +238,9 @@ describe('MicrosoftAuthProvider', () => {
           },
           header: jest.fn(_ => 'XMLHttpRequest'),
           cookies: {
-            'microsoft-refresh-token': 'refreshToken',
+            'microsoft-refresh-token': microsoftApi.generateRefreshToken(
+              'email openid profile User.Read',
+            ),
           },
           get: jest.fn(),
         } as unknown as express.Request,
@@ -298,7 +300,9 @@ describe('MicrosoftAuthProvider', () => {
           },
           header: jest.fn(_ => 'XMLHttpRequest'),
           cookies: {
-            'microsoft-refresh-token': 'refreshToken',
+            'microsoft-refresh-token': microsoftApi.generateRefreshToken(
+              'email openid profile User.Read',
+            ),
           },
           get: jest.fn(),
         } as unknown as express.Request,
@@ -311,36 +315,6 @@ describe('MicrosoftAuthProvider', () => {
             token: 'protectedheader.e30K.signature',
           }),
         }),
-      );
-    });
-
-    it('sets new refresh token', async () => {
-      await provider.refresh!(
-        {
-          query: {
-            env: 'development',
-            scope: 'email openid profile User.Read',
-          },
-          header: jest.fn(_ => 'XMLHttpRequest'),
-          cookies: {
-            'microsoft-refresh-token': 'refreshToken',
-          },
-          get: jest.fn(),
-        } as unknown as express.Request,
-        res,
-      );
-
-      expect(res.cookie).toHaveBeenCalledWith(
-        'microsoft-refresh-token',
-        'newRefreshToken',
-        {
-          domain: 'backstage.test',
-          httpOnly: true,
-          maxAge: 86400000000,
-          path: '/api/auth/microsoft',
-          sameSite: 'lax',
-          secure: false,
-        },
       );
     });
   });
