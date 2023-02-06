@@ -44,6 +44,17 @@ describe('FakeMicrosoftAPI', () => {
       expect(api.hasScope(access_token, 'User.Read')).toBe(false);
     });
 
+    it('special openid scopes do not count towards the 1-audience limit', () => {
+      const { access_token } = api.token(
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: api.generateAuthCode('openid offline_access User.Read'),
+        }),
+      );
+
+      expect(api.hasScope(access_token, 'User.Read')).toBe(true);
+    });
+
     it('refreshes tokens', () => {
       const { access_token } = api.token(
         new URLSearchParams({
@@ -57,6 +68,26 @@ describe('FakeMicrosoftAPI', () => {
       expect(api.hasScope(access_token, 'email openid profile User.Read')).toBe(
         true,
       );
+    });
+    it('requires `openid` scope for ID token', () => {
+      const { id_token } = api.token(
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: api.generateAuthCode('User.Read'),
+        }),
+      );
+
+      expect(id_token).toBeUndefined();
+    });
+    it('requires `offline_access` scope for refresh token', () => {
+      const { refresh_token } = api.token(
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: api.generateAuthCode('User.Read'),
+        }),
+      );
+
+      expect(refresh_token).toBeUndefined();
     });
   });
 

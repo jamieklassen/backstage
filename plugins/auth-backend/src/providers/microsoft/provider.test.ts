@@ -153,7 +153,7 @@ describe('MicrosoftAuthProvider', () => {
           query: {
             env: 'development',
             code: microsoftApi.generateAuthCode(
-              'email openid profile User.Read',
+              'email offline_access openid profile User.Read',
             ),
             state,
           },
@@ -166,7 +166,9 @@ describe('MicrosoftAuthProvider', () => {
 
       expect(res.cookie).toHaveBeenCalledWith(
         'microsoft-refresh-token',
-        microsoftApi.generateRefreshToken('email openid profile User.Read'),
+        microsoftApi.generateRefreshToken(
+          'email offline_access openid profile User.Read',
+        ),
         {
           domain: 'backstage.test',
           httpOnly: true,

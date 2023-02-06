@@ -18,7 +18,7 @@ import { decodeJwt } from 'jose';
 
 export class FakeMicrosoftAPI {
   generateAuthCode(scopeClaim: string): string {
-    const audience = scope => {
+    const audience = (scope: string) => {
       if (scope.includes('/')) {
         return scope.split('/')[0];
       }
@@ -54,20 +54,20 @@ export class FakeMicrosoftAPI {
     return (decodeJwt(token).scp as string).includes(scope);
   }
   token(formData: URLSearchParams) {
-    if (formData.get('grant_type') === 'refresh_token') {
-      const scope = formData.get('scope') ?? formData.get('refresh_token')!;
-      return {
-        access_token: this.tokenWithScope(scope),
-        refresh_token: scope,
-        scope,
-      };
-    }
-    const code = formData.get('code')!;
+    const refresh = formData.get('grant_type') === 'refresh_token';
+    const scope =
+      formData.get('scope') ?? refresh
+        ? formData.get('refresh_token')!
+        : formData.get('code')!;
     return {
-      access_token: this.exchangeCode(code),
-      refresh_token: code,
-      scope: code,
-      id_token: 'header.e30K.signature',
+      access_token: refresh
+        ? this.tokenWithScope(scope)
+        : this.exchangeCode(scope),
+      scope,
+      ...(scope?.includes('offline_access') && {
+        refresh_token: this.generateRefreshToken(scope),
+      }),
+      ...(scope?.includes('openid') && { id_token: 'header.e30K.signature' }),
     };
   }
   handlers() {
