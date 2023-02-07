@@ -39,7 +39,11 @@ describe('MicrosoftAuthProvider', () => {
   setupRequestMockHandlers(server);
 
   beforeEach(() => {
-    provider = microsoft.create()({
+    provider = microsoft.create({
+      signIn: {
+        resolver: microsoft.resolvers.emailMatchingUserEntityAnnotation(),
+      },
+    })({
       providerId: 'microsoft',
       globalConfig: {
         baseUrl: 'http://backstage.test/api/auth',
@@ -54,8 +58,15 @@ describe('MicrosoftAuthProvider', () => {
         },
       }),
       logger: getVoidLogger(),
-      resolverContext: {} as AuthResolverContext,
-    });
+      resolverContext: {
+        issueToken: jest.fn(),
+        findCatalogUser: jest.fn(),
+        signInWithCatalogUser: _ =>
+          Promise.resolve({
+            token: 'header.e30K.backstage',
+          }),
+      } as AuthResolverContext,
+    }) as AuthProviderRouteHandlers;
 
     server.use(...microsoftApi.handlers());
     res = {
@@ -95,8 +106,10 @@ describe('MicrosoftAuthProvider', () => {
         'Location',
         'https://login.microsoftonline.com/tenantId/oauth2/v2.0/authorize' +
           '?response_type=code' +
-          '&redirect_uri=http%3A%2F%2Fbackstage.test%2Fapi%2Fauth%2Fmicrosoft%2Fhandler%2Fframe' +
-          '&scope=email%20openid%20profile%20User.Read' +
+          `&redirect_uri=${encodeURIComponent(
+            'http://backstage.test/api/auth/microsoft/handler/frame',
+          )}` +
+          `&scope=${encodeURIComponent('email openid profile User.Read')}` +
           `&state=${state}` +
           '&client_id=clientId',
       );
@@ -128,18 +141,58 @@ describe('MicrosoftAuthProvider', () => {
               type: 'authorization_response',
               response: {
                 providerInfo: {
-                  idToken: 'header.e30K.signature',
                   accessToken: microsoftApi.tokenWithScope(
                     'email openid profile User.Read',
                   ),
                   scope: 'email openid profile User.Read',
                   expiresInSeconds: 123,
+                  idToken: 'header.e30K.microsoft',
                 },
                 profile: {
                   email: 'conrad@example.com',
                   picture: 'data:image/jpeg;base64,aG93ZHk=',
                   displayName: 'Conrad',
                 },
+                backstageIdentity: {
+                  token: 'header.e30K.backstage',
+                  identity: { type: 'user', ownershipEntityRefs: [] },
+                },
+              },
+            }),
+          ),
+        ),
+      );
+    });
+
+    it('returns access token for non-microsoft graph scope', async () => {
+      await provider.frameHandler(
+        {
+          query: {
+            env: 'development',
+            code: microsoftApi.generateAuthCode('aks-audience/user.read'),
+            state,
+          },
+          cookies: {
+            'microsoft-nonce': nonce,
+          },
+        } as unknown as express.Request,
+        res,
+      );
+
+      expect(res.end).toHaveBeenCalledWith(
+        expect.stringContaining(
+          encodeURIComponent(
+            JSON.stringify({
+              type: 'authorization_response',
+              response: {
+                providerInfo: {
+                  accessToken: microsoftApi.tokenWithScope(
+                    'aks-audience/user.read',
+                  ),
+                  scope: 'aks-audience/user.read',
+                  expiresInSeconds: 123,
+                },
+                profile: {},
               },
             }),
           ),
@@ -211,16 +264,20 @@ describe('MicrosoftAuthProvider', () => {
               type: 'authorization_response',
               response: {
                 providerInfo: {
-                  idToken: 'header.e30K.signature',
                   accessToken: microsoftApi.tokenWithScope(
                     'email openid profile User.Read',
                   ),
                   scope: 'email openid profile User.Read',
                   expiresInSeconds: 123,
+                  idToken: 'header.e30K.microsoft',
                 },
                 profile: {
                   email: 'conrad@example.com',
                   displayName: 'Conrad',
+                },
+                backstageIdentity: {
+                  token: 'header.e30K.backstage',
+                  identity: { type: 'user', ownershipEntityRefs: [] },
                 },
               },
             }),
@@ -255,45 +312,50 @@ describe('MicrosoftAuthProvider', () => {
             accessToken: microsoftApi.tokenWithScope(
               'email openid profile User.Read',
             ),
-            expiresInSeconds: 123,
-            idToken: 'header.e30K.signature',
             scope: 'email openid profile User.Read',
+            expiresInSeconds: 123,
+            idToken: 'header.e30K.microsoft',
           },
           profile: {
             email: 'conrad@example.com',
-            displayName: 'Conrad',
             picture: 'data:image/jpeg;base64,aG93ZHk=',
+            displayName: 'Conrad',
           },
         }),
       );
     });
 
-    it('returns backstage identity when sign-in resolver is configured', async () => {
-      provider = microsoft.create({
-        signIn: {
-          resolver: _ =>
-            Promise.resolve({
-              token: 'protectedheader.e30K.signature',
-            }),
-        },
-      })({
-        providerId: 'microsoft',
-        globalConfig: {
-          baseUrl: 'http://backstage.test/api/auth',
-          appUrl: 'http://backstage.test',
-          isOriginAllowed: _ => true,
-        },
-        config: new ConfigReader({
-          development: {
-            tenantId: 'tenantId',
-            clientId: 'clientId',
-            clientSecret: 'clientSecret',
+    it('returns access token for non-microsoft graph scope', async () => {
+      await provider.refresh!(
+        {
+          query: {
+            env: 'development',
+            scope: 'offline_access aks-audience/user.read',
           },
-        }),
-        logger: getVoidLogger(),
-        resolverContext: {} as AuthResolverContext,
-      }) as AuthProviderRouteHandlers;
+          header: jest.fn(_ => 'XMLHttpRequest'),
+          cookies: {
+            'microsoft-refresh-token': microsoftApi.generateRefreshToken(
+              'offline_access aks-audience/user.read',
+            ),
+          },
+          get: jest.fn(),
+        } as unknown as express.Request,
+        res,
+      );
 
+      expect(res.json).toHaveBeenCalledWith({
+        providerInfo: {
+          accessToken: microsoftApi.tokenWithScope(
+            'offline_access aks-audience/user.read',
+          ),
+          expiresInSeconds: 123,
+          scope: 'offline_access aks-audience/user.read',
+        },
+        profile: {},
+      });
+    });
+
+    it('returns backstage identity', async () => {
       await provider.refresh!(
         {
           query: {
@@ -314,7 +376,7 @@ describe('MicrosoftAuthProvider', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           backstageIdentity: expect.objectContaining({
-            token: 'protectedheader.e30K.signature',
+            token: 'header.e30K.backstage',
           }),
         }),
       );

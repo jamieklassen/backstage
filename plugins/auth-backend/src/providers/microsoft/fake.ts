@@ -25,6 +25,7 @@ export class FakeMicrosoftAPI {
       switch (scope) {
         case 'email':
         case 'openid':
+        case 'offline_access':
         case 'profile': {
           return 'openid';
         }
@@ -67,7 +68,7 @@ export class FakeMicrosoftAPI {
       ...(scope?.includes('offline_access') && {
         refresh_token: this.generateRefreshToken(scope),
       }),
-      ...(scope?.includes('openid') && { id_token: 'header.e30K.signature' }),
+      ...(scope?.includes('openid') && { id_token: 'header.e30K.microsoft' }),
     };
   }
   handlers() {
