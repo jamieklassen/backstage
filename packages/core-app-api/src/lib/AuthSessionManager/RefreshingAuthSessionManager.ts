@@ -48,6 +48,7 @@ export class RefreshingAuthSessionManager<T> implements SessionManager<T> {
 
   private refreshPromise?: Promise<T>;
   private currentSession: T | undefined;
+  private defaultScopes: Set<string>;
 
   constructor(options: Options<T>) {
     const {
@@ -61,6 +62,7 @@ export class RefreshingAuthSessionManager<T> implements SessionManager<T> {
     this.sessionScopesFunc = sessionScopes;
     this.sessionShouldRefreshFunc = sessionShouldRefresh;
     this.helper = new SessionScopeHelper({ sessionScopes, defaultScopes });
+    this.defaultScopes = defaultScopes;
   }
 
   async getSession(options: GetSessionOptions): Promise<T | undefined> {
@@ -135,7 +137,7 @@ export class RefreshingAuthSessionManager<T> implements SessionManager<T> {
       return this.refreshPromise;
     }
 
-    this.refreshPromise = this.connector.refreshSession();
+    this.refreshPromise = this.connector.refreshSession(this.defaultScopes);
 
     try {
       const session = await this.refreshPromise;

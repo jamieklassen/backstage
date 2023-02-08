@@ -36,7 +36,7 @@ const DEFAULT_PROVIDER = {
  * @public
  */
 export default class MicrosoftAuth {
-  private oauth2: Record<string, OAuth2>;
+  private oauth2: { [audience: string]: OAuth2 };
   private environment: string;
   private provider: AuthProviderInfo;
   private oauthRequestApi: OAuthRequestApi;
@@ -81,7 +81,45 @@ export default class MicrosoftAuth {
   }
 
   getAccessToken(scope?: string | string[], options?: AuthRequestOptions) {
-    return this.microsoftGraph().getAccessToken(scope, options);
+    const scopes = typeof scope === 'string' ? scope.split(' ') : scope;
+
+    return this.getAudience(scopes).getAccessToken(scopes, options);
+  }
+
+  getAudience(scopes?: string[]): OAuth2 {
+    const audience = scopes
+      ?.map(MicrosoftAuth.scopeAudience)
+      ?.find(aud => aud !== 'openid');
+    if (!audience) return this.microsoftGraph();
+    if (!(audience in this.oauth2)) {
+      this.oauth2[audience] = OAuth2.create({
+        discoveryApi: this.discoveryApi,
+        oauthRequestApi: this.oauthRequestApi,
+        provider: this.provider,
+        environment: this.environment,
+        defaultScopes: scopes,
+      });
+    }
+    return this.oauth2[audience];
+  }
+
+  private static scopeAudience(scope: string): string {
+    if (scope.includes('/')) {
+      const aud = scope.split('/')[0];
+      return aud === '00000003-0000-0000-c000-000000000000'
+        ? 'https://graph.microsoft.com'
+        : aud;
+    }
+    switch (scope) {
+      case 'email':
+      case 'openid':
+      case 'offline_access':
+      case 'profile': {
+        return 'openid';
+      }
+      default:
+        return 'https://graph.microsoft.com';
+    }
   }
 
   getIdToken(options?: AuthRequestOptions) {

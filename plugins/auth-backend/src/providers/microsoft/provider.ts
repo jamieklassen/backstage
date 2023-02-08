@@ -106,17 +106,11 @@ export class MicrosoftAuthProvider implements OAuthHandlers {
   }
 
   private skipUserProfile = (accessToken: string): boolean => {
-    const scopeClaim = decodeJwt(accessToken).scp as string;
-    return !scopeClaim
-      .split(' ')
-      .map(scope => scope.toLowerCase())
-      .some((s: string): boolean =>
-        [
-          'user.read',
-          'https://graph.microsoft.com/user.read',
-          '00000003-0000-0000-c000-000000000000/user.read',
-        ].includes(s),
-      );
+    const { scp, aud } = decodeJwt(accessToken);
+    return (
+      aud !== '00000003-0000-0000-c000-000000000000' ||
+      !(scp as string).split(' ').includes('User.Read')
+    );
   };
 
   async start(req: OAuthStartRequest): Promise<OAuthStartResponse> {
