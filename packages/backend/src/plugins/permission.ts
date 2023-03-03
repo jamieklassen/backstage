@@ -19,6 +19,7 @@ import { createRouter } from '@backstage/plugin-permission-backend';
 import {
   AuthorizeResult,
   PolicyDecision,
+  isResourcePermission,
 } from '@backstage/plugin-permission-common';
 import {
   PermissionPolicy,
@@ -28,6 +29,11 @@ import {
   DefaultPlaylistPermissionPolicy,
   isPlaylistPermission,
 } from '@backstage/plugin-playlist-backend';
+import {
+  catalogConditions,
+  createCatalogConditionalDecision,
+} from '@backstage/plugin-catalog-backend/alpha';
+import { RESOURCE_TYPE_CATALOG_ENTITY } from '@backstage/plugin-catalog-common/alpha';
 import { Router } from 'express';
 import { PluginEnvironment } from '../types';
 
@@ -40,6 +46,22 @@ class ExamplePermissionPolicy implements PermissionPolicy {
   ): Promise<PolicyDecision> {
     if (isPlaylistPermission(request.permission)) {
       return this.playlistPermissionPolicy.handle(request, user);
+    }
+    if (
+      isResourcePermission(request.permission, RESOURCE_TYPE_CATALOG_ENTITY)
+    ) {
+      return createCatalogConditionalDecision(request.permission, {
+        anyOf: [
+          {
+            not: catalogConditions.isEntityKind({
+              kinds: ['Component'],
+            }),
+          },
+          catalogConditions.isEntityOwner({
+            claims: user?.identity.ownershipEntityRefs ?? [],
+          }),
+        ],
+      });
     }
 
     return {

@@ -16,7 +16,10 @@
 
 import {
   DEFAULT_NAMESPACE,
+  RELATION_MEMBER_OF,
+  RELATION_CHILD_OF,
   stringifyEntityRef,
+  Entity,
 } from '@backstage/catalog-model';
 import {
   createRouter,
@@ -80,8 +83,56 @@ export default async function createPlugin(
       }),
       microsoft: providers.microsoft.create({
         signIn: {
-          resolver:
-            providers.microsoft.resolvers.emailMatchingUserEntityAnnotation(),
+          resolver: async (info, ctx) => {
+            const { profile } = info;
+
+            if (!profile.email) {
+              throw new Error('Microsoft profile contained no email');
+            }
+
+            const user = (
+              await ctx.findCatalogUser({
+                annotations: {
+                  'microsoft.com/email': profile.email,
+                },
+              })
+            ).entity;
+            const getGroupRefs = (
+              entity: Entity,
+              relationType: string,
+            ): Promise<string[]> =>
+              Promise.all(
+                entity.relations
+                  ?.filter(
+                    r =>
+                      r.type === relationType &&
+                      r.targetRef.startsWith('group:'),
+                  )
+                  .map(r => r.targetRef)
+                  .map(async entityRef => {
+                    const parentEntity = (
+                      await ctx.findCatalogUser({ entityRef })
+                    ).entity;
+                    return [
+                      entityRef,
+                      ...(await getGroupRefs(parentEntity, RELATION_CHILD_OF)),
+                    ];
+                  }) ?? [],
+              ).then(arr => arr.flat());
+            const ownershipRefs = Array.from(
+              new Set([
+                stringifyEntityRef(user),
+                ...(await getGroupRefs(user, RELATION_MEMBER_OF)),
+              ]),
+            );
+
+            return await ctx.issueToken({
+              claims: {
+                sub: stringifyEntityRef(user),
+                ent: ownershipRefs,
+              },
+            });
+          },
         },
       }),
       google: providers.google.create({
