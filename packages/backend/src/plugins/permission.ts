@@ -93,12 +93,14 @@ class ExamplePermissionPolicy implements PermissionPolicy {
     const result = await Promise.all(
       entity?.relations
         ?.filter(r =>
-          [
-            RELATION_PARENT_OF,
-            RELATION_CHILD_OF,
-            RELATION_MEMBER_OF,
-            RELATION_HAS_MEMBER,
-          ].includes(r.type),
+          [RELATION_PARENT_OF, RELATION_HAS_MEMBER]
+            .concat(
+              entity?.metadata.annotations?.['tanzu.vmware.com/space'] ===
+                'false' || entity.kind === 'User'
+                ? [RELATION_CHILD_OF, RELATION_MEMBER_OF]
+                : [],
+            )
+            .includes(r.type),
         )
         .map(r => r.targetRef)
         .filter(r => r.startsWith('group:') || r.startsWith('user:'))
