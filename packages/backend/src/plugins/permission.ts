@@ -15,10 +15,12 @@
  */
 
 import { BackstageIdentityResponse } from '@backstage/plugin-auth-node';
+import { PluginEndpointDiscovery } from '@backstage/backend-common';
 import { createRouter } from '@backstage/plugin-permission-backend';
 import {
   AuthorizeResult,
   PolicyDecision,
+  isResourcePermission,
 } from '@backstage/plugin-permission-common';
 import {
   PermissionPolicy,
@@ -28,11 +30,28 @@ import {
   DefaultPlaylistPermissionPolicy,
   isPlaylistPermission,
 } from '@backstage/plugin-playlist-backend';
+import { CatalogApi, CatalogClient } from '@backstage/catalog-client';
+import {
+  RELATION_PARENT_OF,
+  RELATION_CHILD_OF,
+  RELATION_MEMBER_OF,
+  RELATION_HAS_MEMBER,
+} from '@backstage/catalog-model';
+import {
+  catalogConditions,
+  createCatalogConditionalDecision,
+} from '@backstage/plugin-catalog-backend/alpha';
+import { RESOURCE_TYPE_CATALOG_ENTITY } from '@backstage/plugin-catalog-common/alpha';
 import { Router } from 'express';
 import { PluginEnvironment } from '../types';
 
 class ExamplePermissionPolicy implements PermissionPolicy {
   private playlistPermissionPolicy = new DefaultPlaylistPermissionPolicy();
+  private catalogApi: CatalogApi;
+
+  constructor(discoveryApi: PluginEndpointDiscovery) {
+    this.catalogApi = new CatalogClient({ discoveryApi });
+  }
 
   async handle(
     request: PolicyQuery,
@@ -41,10 +60,57 @@ class ExamplePermissionPolicy implements PermissionPolicy {
     if (isPlaylistPermission(request.permission)) {
       return this.playlistPermissionPolicy.handle(request, user);
     }
+    if (
+      isResourcePermission(request.permission, RESOURCE_TYPE_CATALOG_ENTITY)
+    ) {
+      return createCatalogConditionalDecision(request.permission, {
+        anyOf: [
+          {
+            not: catalogConditions.isEntityKind({
+              kinds: ['Component'],
+            }),
+          },
+          catalogConditions.isEntityOwner({
+            claims: user
+              ? await this.traverseOrg(user.identity.userEntityRef)
+              : [],
+          }),
+        ],
+      });
+    }
 
     return {
       result: AuthorizeResult.ALLOW,
     };
+  }
+
+  private async traverseOrg(
+    entityRef: string,
+    exploredRefs: Set<string> = new Set(),
+  ): Promise<string[]> {
+    exploredRefs.add(entityRef);
+    const entity = await this.catalogApi.getEntityByRef(entityRef);
+    const result = await Promise.all(
+      entity?.relations
+        ?.filter(r =>
+          [
+            RELATION_PARENT_OF,
+            RELATION_CHILD_OF,
+            RELATION_MEMBER_OF,
+            RELATION_HAS_MEMBER,
+          ].includes(r.type),
+        )
+        .map(r => r.targetRef)
+        .filter(r => r.startsWith('group:') || r.startsWith('user:'))
+        .filter(r => !exploredRefs.has(r))
+        .map(async parentEntityRef => {
+          return [
+            parentEntityRef,
+            ...(await this.traverseOrg(parentEntityRef, exploredRefs)),
+          ];
+        }) ?? [],
+    );
+    return Array.from(new Set([entityRef, ...result.flat()]));
   }
 }
 
@@ -55,7 +121,7 @@ export default async function createPlugin(
     config: env.config,
     logger: env.logger,
     discovery: env.discovery,
-    policy: new ExamplePermissionPolicy(),
+    policy: new ExamplePermissionPolicy(env.discovery),
     identity: env.identity,
   });
 }
