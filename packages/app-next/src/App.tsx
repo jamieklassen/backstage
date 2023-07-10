@@ -24,6 +24,7 @@ import { BrowserRouter, useRoutes } from 'react-router-dom';
 import mapValues from 'lodash/mapValues';
 import { Config, ConfigReader } from '@backstage/config';
 import { Sidebar, SidebarItem, SidebarPage } from '@backstage/core-components';
+import MuiEmojiPeopleIcon from '@material-ui/icons/EmojiPeople';
 
 /* core */
 
@@ -287,7 +288,15 @@ function createApp(options: { plugins: BackstagePlugin[] }): {
       id: 'core.nav',
       at: 'root/default',
       extension: NavExtension,
-      config: undefined,
+      config: {
+        layout: [
+          {
+            label: 'Hello World',
+            icon: MuiEmojiPeopleIcon,
+            to: '/hello-world',
+          },
+        ],
+      },
     },
   ];
 
@@ -420,10 +429,36 @@ const graphiqlPlugin = createPlugin({
   ],
 });
 
+const helloWorldPlugin = createPlugin({
+  id: 'hello-world',
+  defaultExtensionInstances: [
+    {
+      id: 'hello-world.page',
+      at: 'core.router/routes',
+      extension: createExtension({
+        output: {
+          component: coreExtensionData.reactComponent,
+          path: coreExtensionData.routePath,
+        },
+        factory({ bind, config }) {
+          bind.component(() => (
+            <div>
+              <h1>Hello World!!</h1>
+              <p>We are now: {new Date().toISOString()}.</p>
+            </div>
+          ));
+          bind.path((config as { path: string }).path);
+        },
+      }),
+      config: { path: '/hello-world' },
+    },
+  ],
+});
+
 /* app.tsx */
 
 const app = createApp({
-  plugins: [graphiqlPlugin],
+  plugins: [graphiqlPlugin, helloWorldPlugin],
   // bindRoutes({ bind }) {
   //   bind(catalogPlugin.externalRoutes, {
   //     createComponent: scaffolderPlugin.routes.root,
