@@ -23,6 +23,7 @@ import React, { ComponentType } from 'react';
 import { BrowserRouter, useRoutes } from 'react-router-dom';
 import mapValues from 'lodash/mapValues';
 import { Config, ConfigReader } from '@backstage/config';
+import { Sidebar, SidebarItem, SidebarPage } from '@backstage/core-components';
 
 /* core */
 
@@ -176,9 +177,33 @@ const RouteExtension = createExtension({
 
       return element;
     };
+    bind.component(() => <Routes />);
+  },
+});
+
+const NavExtension = createExtension({
+  inputs: {
+    routes: {
+      extensionData: {
+        component: coreExtensionData.reactComponent,
+      },
+    },
+  },
+  output: {
+    component: coreExtensionData.reactComponent,
+  },
+  factory({ bind, config, inputs }) {
+    const Routes = inputs.routes.at(0).component;
     bind.component(() => (
       <BrowserRouter>
-        <Routes />
+        <SidebarPage>
+          <Sidebar>
+            {config.layout.map(item => (
+              <SidebarItem icon={item.icon} to={item.to} text={item.label} />
+            ))}
+          </Sidebar>
+          <Routes />
+        </SidebarPage>
       </BrowserRouter>
     ));
   },
@@ -254,8 +279,14 @@ function createApp(options: { plugins: BackstagePlugin[] }): {
     ...options.plugins.flatMap(plugin => plugin.defaultExtensionInstances),
     {
       id: 'core.router',
-      at: 'root/default',
+      at: 'core.nav/routes',
       extension: RouteExtension,
+      config: undefined,
+    },
+    {
+      id: 'core.nav',
+      at: 'root/default',
+      extension: NavExtension,
       config: undefined,
     },
   ];
