@@ -189,23 +189,39 @@ const NavExtension = createExtension({
         component: coreExtensionData.reactComponent,
       },
     },
+    items: {
+      extensionData: {
+        component: coreExtensionData.reactComponent,
+      },
+    },
   },
   output: {
     component: coreExtensionData.reactComponent,
   },
-  factory({ bind, config, inputs }) {
+  factory({ bind, inputs }) {
     const Routes = inputs.routes.at(0).component;
     bind.component(() => (
       <BrowserRouter>
         <SidebarPage>
           <Sidebar>
-            {config.layout.map(item => (
-              <SidebarItem icon={item.icon} to={item.to} text={item.label} />
+            {inputs.items.map(item => (
+              <item.component />
             ))}
           </Sidebar>
           <Routes />
         </SidebarPage>
       </BrowserRouter>
+    ));
+  },
+});
+
+const SidebarItemExtension = createExtension({
+  output: {
+    component: coreExtensionData.reactComponent,
+  },
+  factory({ bind, config }) {
+    bind.component(() => (
+      <SidebarItem icon={config.icon} to={config.to} text={config.label} />
     ));
   },
 });
@@ -288,15 +304,7 @@ function createApp(options: { plugins: BackstagePlugin[] }): {
       id: 'core.nav',
       at: 'root/default',
       extension: NavExtension,
-      config: {
-        layout: [
-          {
-            label: 'Hello World',
-            icon: MuiEmojiPeopleIcon,
-            to: '/hello-world',
-          },
-        ],
-      },
+      config: undefined,
     },
   ];
 
@@ -451,6 +459,16 @@ const helloWorldPlugin = createPlugin({
         },
       }),
       config: { path: '/hello-world' },
+    },
+    {
+      id: 'hello-world.nav-item',
+      at: 'core.nav/items',
+      extension: SidebarItemExtension,
+      config: {
+        label: 'Hello World',
+        icon: MuiEmojiPeopleIcon,
+        to: '/hello-world',
+      },
     },
   ],
 });
