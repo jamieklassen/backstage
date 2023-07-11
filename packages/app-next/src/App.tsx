@@ -470,6 +470,20 @@ const helloWorldPlugin = createPlugin({
         to: '/hello-world',
       },
     },
+    {
+      id: 'hello-world.banner',
+      at: 'root/default',
+      extension: createExtension({
+        output: {
+          component: coreExtensionData.reactComponent,
+        },
+        factory({ bind }) {
+          bind.component(() => (
+            <div style={{ textAlign: 'center' }}>Hello World Banner</div>
+          ));
+        },
+      }),
+    },
   ],
 });
 
