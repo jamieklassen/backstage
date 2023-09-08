@@ -692,9 +692,19 @@ describe('KubernetesProxy', () => {
           });
       });
 
+      authTranslator.decorateClusterDetailsWithAuth.mockImplementation(
+        async x => ({ ...x, serviceAccountToken: 'my-token' }),
+      );
       wsEchoServer = new WebSocketServer({
         port: 0,
         path: wsPath,
+        verifyClient: (info, done) => {
+          console.log(info.req.headers);
+          if (info.req.headers.authorization !== 'Bearer my-token') {
+            return done(false, 403, 'Not valid token');
+          }
+          return done(true);
+        },
       });
       wsPort = (wsEchoServer.address() as AddressInfo).port;
 
