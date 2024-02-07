@@ -95,6 +95,7 @@
     "@roadiehq/backstage-plugin-github-insights": "^2.0.5",
     "@roadiehq/backstage-plugin-github-pull-requests": "^2.2.7",
     "@roadiehq/backstage-plugin-travis-ci": "^2.0.5",
+    "@spotify/backstage-plugin-rbac": "^0.5.12",
     "@vitejs/plugin-react": "^4.0.4",
     "history": "^5.0.0",
     "react": "^18.0.2",

@@ -66,6 +66,7 @@ import linguist from './plugins/linguist';
 import devTools from './plugins/devtools';
 import nomad from './plugins/nomad';
 import signals from './plugins/signals';
+import rbac from './plugins/rbac';
 import { PluginEnvironment } from './types';
 import { ServerPermissionClient } from '@backstage/plugin-permission-node';
 import { DefaultIdentityClient } from '@backstage/plugin-auth-node';
@@ -179,6 +180,7 @@ async function main() {
   const devToolsEnv = useHotMemoize(module, () => createEnv('devtools'));
   const nomadEnv = useHotMemoize(module, () => createEnv('nomad'));
   const signalsEnv = useHotMemoize(module, () => createEnv('signals'));
+  const rbacEnv = useHotMemoize(module, () => createEnv('rbac'));
 
   const apiRouter = Router();
   apiRouter.use('/catalog', await catalog(catalogEnv));
@@ -206,6 +208,7 @@ async function main() {
   apiRouter.use('/devtools', await devTools(devToolsEnv));
   apiRouter.use('/nomad', await nomad(nomadEnv));
   apiRouter.use('/signals', await signals(signalsEnv));
+  apiRouter.use('/rbac', await rbac(rbacEnv));
   apiRouter.use(notFoundHandler());
 
   await lighthouse(lighthouseEnv);

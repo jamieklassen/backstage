@@ -53,6 +53,7 @@ import Score from '@material-ui/icons/Score';
 import { useApp } from '@backstage/core-plugin-api';
 import BuildIcon from '@material-ui/icons/Build';
 import { NotificationsSidebarItem } from '@backstage/plugin-notifications';
+import { RBACSidebarItem } from '@spotify/backstage-plugin-rbac';
 
 const useSidebarLogoStyles = makeStyles({
   root: {
@@ -179,6 +180,7 @@ export const Root = ({ children }: PropsWithChildren<{}>) => (
       >
         <SidebarSettings />
         <SidebarItem icon={BuildIcon} to="devtools" text="DevTools" />
+        <RBACSidebarItem />
       </SidebarGroup>
     </Sidebar>
     {children}

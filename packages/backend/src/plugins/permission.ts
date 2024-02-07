@@ -28,25 +28,9 @@ import {
   DefaultPlaylistPermissionPolicy,
   isPlaylistPermission,
 } from '@backstage/plugin-playlist-backend';
+import { RBACPolicyBuilder } from '@spotify/backstage-plugin-rbac-backend';
 import { Router } from 'express';
 import { PluginEnvironment } from '../types';
-
-class ExamplePermissionPolicy implements PermissionPolicy {
-  private playlistPermissionPolicy = new DefaultPlaylistPermissionPolicy();
-
-  async handle(
-    request: PolicyQuery,
-    user?: BackstageIdentityResponse,
-  ): Promise<PolicyDecision> {
-    if (isPlaylistPermission(request.permission)) {
-      return this.playlistPermissionPolicy.handle(request, user);
-    }
-
-    return {
-      result: AuthorizeResult.ALLOW,
-    };
-  }
-}
 
 export default async function createPlugin(
   env: PluginEnvironment,
@@ -55,7 +39,7 @@ export default async function createPlugin(
     config: env.config,
     logger: env.logger,
     discovery: env.discovery,
-    policy: new ExamplePermissionPolicy(),
+    policy: await RBACPolicyBuilder.create(env).build(),
     identity: env.identity,
   });
 }
