@@ -13,27 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import { BackstageIdentityResponse } from '@backstage/plugin-auth-node';
-import { createRouter } from '@backstage/plugin-permission-backend';
-import {
-  AuthorizeResult,
-  PolicyDecision,
-} from '@backstage/plugin-permission-common';
-import {
-  PermissionPolicy,
-  PolicyQuery,
-} from '@backstage/plugin-permission-node';
-import {
-  DefaultPlaylistPermissionPolicy,
-  isPlaylistPermission,
-} from '@backstage/plugin-playlist-backend';
-import { RBACPolicyBuilder } from '@spotify/backstage-plugin-rbac-backend';
 import { Router } from 'express';
+import {
+  PluginIdProvider,
+  PolicyBuilder,
+} from '@janus-idp/backstage-plugin-rbac-backend';
+import { RBACPolicyBuilder } from '@spotify/backstage-plugin-rbac-backend';
+
 import { PluginEnvironment } from '../types';
 
 export default async function createPlugin(
   env: PluginEnvironment,
+  // pluginIdProvider: PluginIdProvider,
 ): Promise<Router> {
   return await createRouter({
     config: env.config,
@@ -42,4 +33,15 @@ export default async function createPlugin(
     policy: await RBACPolicyBuilder.create(env).build(),
     identity: env.identity,
   });
+  // return PolicyBuilder.build(
+  //   {
+  //     config: env.config,
+  //     logger: env.logger,
+  //     discovery: env.discovery,
+  //     identity: env.identity,
+  //     permissions: env.permissions,
+  //     tokenManager: env.tokenManager,
+  //   },
+  //   pluginIdProvider,
+  // );
 }

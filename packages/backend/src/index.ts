@@ -65,7 +65,6 @@ import lighthouse from './plugins/lighthouse';
 import linguist from './plugins/linguist';
 import devTools from './plugins/devtools';
 import nomad from './plugins/nomad';
-import signals from './plugins/signals';
 import rbac from './plugins/rbac';
 import { PluginEnvironment } from './types';
 import { ServerPermissionClient } from '@backstage/plugin-permission-node';
@@ -179,7 +178,6 @@ async function main() {
   const linguistEnv = useHotMemoize(module, () => createEnv('linguist'));
   const devToolsEnv = useHotMemoize(module, () => createEnv('devtools'));
   const nomadEnv = useHotMemoize(module, () => createEnv('nomad'));
-  const signalsEnv = useHotMemoize(module, () => createEnv('signals'));
   const rbacEnv = useHotMemoize(module, () => createEnv('rbac'));
 
   const apiRouter = Router();
@@ -199,7 +197,12 @@ async function main() {
   apiRouter.use('/proxy', await proxy(proxyEnv));
   apiRouter.use('/badges', await badges(badgesEnv));
   apiRouter.use('/jenkins', await jenkins(jenkinsEnv));
-  apiRouter.use('/permission', await permission(permissionEnv));
+  apiRouter.use(
+    '/permission',
+    await permission(permissionEnv, {
+      getPluginIds: () => ['catalog', 'scaffolder', 'permission'],
+    }),
+  );
   apiRouter.use('/playlist', await playlist(playlistEnv));
   apiRouter.use('/explore', await explore(exploreEnv));
   apiRouter.use('/entity-feedback', await entityFeedback(entityFeedbackEnv));
@@ -207,7 +210,6 @@ async function main() {
   apiRouter.use('/linguist', await linguist(linguistEnv));
   apiRouter.use('/devtools', await devTools(devToolsEnv));
   apiRouter.use('/nomad', await nomad(nomadEnv));
-  apiRouter.use('/signals', await signals(signalsEnv));
   apiRouter.use('/rbac', await rbac(rbacEnv));
   apiRouter.use(notFoundHandler());
 

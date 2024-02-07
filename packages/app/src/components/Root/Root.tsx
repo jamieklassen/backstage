@@ -54,6 +54,7 @@ import { useApp } from '@backstage/core-plugin-api';
 import BuildIcon from '@material-ui/icons/Build';
 import { NotificationsSidebarItem } from '@backstage/plugin-notifications';
 import { RBACSidebarItem } from '@spotify/backstage-plugin-rbac';
+import { Administration } from '@janus-idp/backstage-plugin-rbac';
 
 const useSidebarLogoStyles = makeStyles({
   root: {

@@ -109,6 +109,7 @@ import { customDevToolsPage } from './components/devtools/CustomDevToolsPage';
 import { CatalogUnprocessedEntitiesPage } from '@backstage/plugin-catalog-unprocessed-entities';
 import { NotificationsPage } from '@backstage/plugin-notifications';
 import { RBACRoot } from '@spotify/backstage-plugin-rbac';
+import { RbacPage } from '@janus-idp/backstage-plugin-rbac';
 
 const app = createApp({
   apis,
